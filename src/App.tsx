@@ -57,17 +57,16 @@ interface Transaction {
   category: CategoryType;
 }
 
-// Nouvelle interface pour les récurrences
 interface RecurringItem {
   id: string;
   label: string;
   amount: number;
   type: TransactionType;
   category: CategoryType;
-  frequency: 'monthly'; // Pour l'instant on gère le mensuel
+  frequency: 'monthly';
   startDate: string;
-  durationMonths: number; // 0 = illimité (Netflix), 24 = PEL 24 mois
-  lastGenerated: string; // Date de la dernière génération (ex: "2023-10")
+  durationMonths: number;
+  lastGenerated: string;
 }
 
 const formatCurrency = (amount: number) => 
@@ -156,7 +155,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [recurringItems, setRecurringItems] = useState<RecurringItem[]>([]); // New state
+  const [recurringItems, setRecurringItems] = useState<RecurringItem[]>([]);
   
   const [isDarkMode, setIsDarkMode] = useState(() => typeof window !== 'undefined' ? localStorage.getItem('theme') === 'dark' : false);
   const [filterType, setFilterType] = useState<'month' | 'year' | 'all'>('all');
@@ -168,7 +167,6 @@ export default function App() {
     type: 'expense' as TransactionType, category: 'needs' as CategoryType
   });
 
-  // Nouveau Formulaire pour les récurrences
   const [recurringForm, setRecurringForm] = useState({
     label: '', amount: '', type: 'expense' as TransactionType, category: 'needs' as CategoryType, durationMonths: 0
   });
@@ -179,7 +177,7 @@ export default function App() {
     else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); }
   }, [isDarkMode]);
 
-  // Auth & Data fetching
+  // Auth & Data
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
     return () => unsubscribe();
@@ -188,14 +186,12 @@ export default function App() {
   useEffect(() => {
     if (!user) { setTransactions([]); setRecurringItems([]); return; }
     
-    // 1. Transactions Listener
     const qTrx = query(collection(db, "users", user.uid, "transactions"), orderBy("date", "desc"));
     const unsubTrx = onSnapshot(qTrx, 
       (snap) => { setTransactions(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Transaction[]); setErrorMsg(null); }, 
       (err) => setErrorMsg("Erreur accès base de données (Transactions).")
     );
 
-    // 2. Recurring Listener
     const qRec = query(collection(db, "users", user.uid, "recurring"));
     const unsubRec = onSnapshot(qRec,
       (snap) => setRecurringItems(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as RecurringItem[]),
@@ -210,20 +206,16 @@ export default function App() {
   const handleGuestLogin = async () => { try { await signInAnonymously(auth); } catch (e) { console.error(e); } };
   const handleLogout = () => signOut(auth);
 
-  // AJOUT TRANSACTION STANDARD
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !formData.label || !formData.amount) return;
     try {
-      await addDoc(collection(db, "users", user.uid, "transactions"), {
-        ...formData, amount: parseFloat(formData.amount), createdAt: new Date()
-      });
+      await addDoc(collection(db, "users", user.uid, "transactions"), { ...formData, amount: parseFloat(formData.amount), createdAt: new Date() });
       setFormData({ ...formData, label: '', amount: '' });
       if (window.innerWidth < 768) setActiveTab('transactions');
     } catch (err) { alert("Erreur d'ajout"); }
   };
 
-  // AJOUT TRANSACTION RÉCURRENTE
   const handleAddRecurring = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !recurringForm.label || !recurringForm.amount) return;
@@ -232,8 +224,8 @@ export default function App() {
         ...recurringForm,
         amount: parseFloat(recurringForm.amount),
         frequency: 'monthly',
-        startDate: new Date().toISOString().slice(0, 7), // Commence ce mois-ci
-        lastGenerated: "", // Jamais généré encore
+        startDate: new Date().toISOString().slice(0, 7),
+        lastGenerated: "", 
         createdAt: new Date()
       });
       setRecurringForm({ ...recurringForm, label: '', amount: '', durationMonths: 0 });
@@ -241,26 +233,20 @@ export default function App() {
     } catch (err) { alert("Erreur d'ajout récurrent"); }
   };
 
-  // SUPPRESSION
   const handleDelete = async (id: string, collectionName: string) => {
     if (!user) return;
     if (confirm("Supprimer ?")) await deleteDoc(doc(db, "users", user.uid, collectionName, id));
   };
 
-  // --- LOGIQUE AUTOMATISATION ---
-  // Vérifie si des transactions doivent être générées pour le mois en cours
+  // Logic Gen
   const pendingRecurringCount = recurringItems.filter(item => {
     const currentMonthStr = new Date().toISOString().slice(0, 7);
-    // Si pas encore généré ce mois-ci ET (durée illimitée OU date de fin pas encore atteinte)
     const isDue = item.lastGenerated < currentMonthStr;
-    
-    // Calcul de la fin si durée limitée
     let isExpired = false;
     if (item.durationMonths > 0) {
       const start = new Date(item.startDate + "-01");
       const end = new Date(start.setMonth(start.getMonth() + item.durationMonths));
-      const now = new Date();
-      if (now > end) isExpired = true;
+      if (new Date() > end) isExpired = true;
     }
     return isDue && !isExpired;
   }).length;
@@ -268,13 +254,11 @@ export default function App() {
   const generateRecurringTransactions = async () => {
     if (!user) return;
     const currentMonthStr = new Date().toISOString().slice(0, 7);
-    const dayOfMonth = new Date().getDate().toString().padStart(2, '0'); // Garder le jour actuel
-    
+    const dayOfMonth = new Date().getDate().toString().padStart(2, '0');
     let generatedCount = 0;
 
     for (const item of recurringItems) {
       if (item.lastGenerated < currentMonthStr) {
-        // Vérification expiration (copie logique ci-dessus)
         let isExpired = false;
         if (item.durationMonths > 0) {
           const start = new Date(item.startDate + "-01");
@@ -283,28 +267,24 @@ export default function App() {
         }
 
         if (!isExpired) {
-          // 1. Créer la transaction
           await addDoc(collection(db, "users", user.uid, "transactions"), {
             label: `${item.label} (Auto)`,
             amount: item.amount,
-            date: `${currentMonthStr}-${dayOfMonth}`, // Date du jour
+            date: `${currentMonthStr}-${dayOfMonth}`, 
             type: item.type,
             category: item.category,
             isAuto: true,
             createdAt: new Date()
           });
-          // 2. Mettre à jour la date de génération
-          await updateDoc(doc(db, "users", user.uid, "recurring", item.id), {
-            lastGenerated: currentMonthStr
-          });
+          await updateDoc(doc(db, "users", user.uid, "recurring", item.id), { lastGenerated: currentMonthStr });
           generatedCount++;
         }
       }
     }
-    alert(`${generatedCount} opérations générées pour ce mois !`);
+    alert(`${generatedCount} opérations générées !`);
   };
 
-  // --- FILTRAGE ET STATS ---
+  // Stats
   const filteredTransactions = transactions.filter(t => {
     if (filterType === 'all') return true;
     if (filterType === 'year') return t.date.startsWith(currentYear);
@@ -377,7 +357,7 @@ export default function App() {
           {[
             { id: 'dashboard', icon: BarChart3, label: 'Tableau de bord' },
             { id: 'transactions', icon: PlusCircle, label: 'Transactions' },
-            { id: 'recurring', icon: Repeat, label: 'Récurrent' }, // NOUVEAU TAB
+            { id: 'recurring', icon: Repeat, label: 'Récurrent' },
             { id: 'analysis', icon: Target, label: 'Analyse' },
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-slate-900 dark:bg-blue-600 text-white shadow-md' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'}`}>
@@ -386,10 +366,8 @@ export default function App() {
           ))}
         </div>
 
-        {/* DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            {/* ALERT BOX POUR RECURRENCES EN ATTENTE */}
             {pendingRecurringCount > 0 && (
               <div className="bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -451,7 +429,6 @@ export default function App() {
           </div>
         )}
 
-        {/* TRANSACTIONS */}
         {activeTab === 'transactions' && (
           <div className="grid lg:grid-cols-3 gap-6">
             <Card className="p-6 h-fit sticky top-24">
@@ -522,8 +499,8 @@ export default function App() {
                  <input type="number" placeholder="Montant Mensuel" required step="0.01" className="w-full p-2 border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-transparent dark:text-white placeholder-slate-400" value={recurringForm.amount} onChange={e => setRecurringForm({...recurringForm, amount: e.target.value})} />
                  
                  <div>
-                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Durée (Mois) - 0 pour illimité</label>
-                   <input type="number" placeholder="ex: 24 pour PEL" min="0" className="w-full p-2 border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-transparent dark:text-white placeholder-slate-400" value={recurringForm.durationMonths} onChange={e => setRecurringForm({...recurringForm, durationMonths: parseInt(e.target.value) || 0})} />
+                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Durée (Mois) - Vide pour illimité</label>
+                   <input type="number" placeholder="ex: 24 pour PEL" min="0" className="w-full p-2 border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-transparent dark:text-white placeholder-slate-400" value={recurringForm.durationMonths === 0 ? '' : recurringForm.durationMonths} onChange={e => setRecurringForm({...recurringForm, durationMonths: parseInt(e.target.value) || 0})} />
                  </div>
 
                  {recurringForm.type === 'expense' && (
