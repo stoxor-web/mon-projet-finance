@@ -3,6 +3,7 @@ import { initializeApp } from "firebase/app";
 import { 
   getAuth, 
   signInWithPopup, 
+  signInAnonymously, // <-- Import pour le mode invité
   GoogleAuthProvider, 
   signOut, 
   onAuthStateChanged,
@@ -20,10 +21,10 @@ import {
 } from "firebase/firestore";
 import { 
   Wallet, BarChart3, PlusCircle, Target, TrendingUp, TrendingDown, 
-  ArrowUpRight, ArrowDownRight, Trash2, LogOut
+  ArrowUpRight, ArrowDownRight, Trash2, LogOut, User as UserIcon
 } from 'lucide-react';
 
-// --- TA CONFIGURATION FIREBASE PERSONNELLE ---
+// --- CONFIGURATION FIREBASE ---
 const firebaseConfig = {
   apiKey: "AIzaSyCy5hc12pARoVFOxuFHBeQaWxSfQKbSkq0",
   authDomain: "financeflow-11a6a.firebaseapp.com",
@@ -33,13 +34,13 @@ const firebaseConfig = {
   appId: "1:840695020676:web:f69a81bd79915197a916d1"
 };
 
-// Initialisation de Firebase
+// Initialisation
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const provider = new GoogleAuthProvider();
+const googleProvider = new GoogleAuthProvider();
 
-// --- TYPES ---
+// --- TYPES & UTILS ---
 type TransactionType = 'income' | 'expense';
 type CategoryType = 'needs' | 'wants' | 'savings' | 'salary';
 
@@ -52,35 +53,35 @@ interface Transaction {
   category: CategoryType;
 }
 
-// --- UTILS ---
 const formatCurrency = (amount: number) => 
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
 
-// --- COMPOSANTS UI ---
 const Card = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
   <div className={`bg-white rounded-xl shadow-sm border border-slate-200 ${className}`}>
     {children}
   </div>
 );
 
-// --- ECRAN DE CONNEXION ---
-const LoginScreen = ({ onLogin }: { onLogin: () => void }) => (
+// --- NOUVEL ECRAN DE CONNEXION ---
+const LoginScreen = ({ onGoogle, onGuest }: { onGoogle: () => void, onGuest: () => void }) => (
   <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
     <div className="text-center mb-8">
       <div className="bg-blue-600 p-3 rounded-xl w-fit mx-auto mb-4 shadow-lg shadow-blue-200">
         <Wallet className="w-8 h-8 text-white" />
       </div>
-      <h1 className="text-3xl font-bold text-slate-900 mb-2">Finance Flow by STOXOR</h1>
-      <p className="text-slate-500">Gérez vos finances avec l'outil Finance Flow développer par STOXOR</p>
+      <h1 className="text-3xl font-bold text-slate-900 mb-2">FinanceFlow</h1>
+      <p className="text-slate-500">Gérez vos finances avec la méthode 50/30/20</p>
     </div>
     
-    <Card className="p-8 max-w-sm w-full text-center space-y-6">
-      <div className="space-y-2">
+    <Card className="p-8 max-w-sm w-full text-center space-y-4">
+      <div className="space-y-2 mb-6">
         <h2 className="text-xl font-bold text-slate-800">Bienvenue</h2>
-        <p className="text-sm text-slate-400">Connectez-vous pour sauvegarder vos données</p>
+        <p className="text-sm text-slate-400">Choisissez une méthode de connexion</p>
       </div>
+
+      {/* Bouton Google */}
       <button 
-        onClick={onLogin}
+        onClick={onGoogle}
         className="w-full flex items-center justify-center gap-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium py-3 px-4 rounded-lg transition-all"
       >
         <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -91,25 +92,33 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => (
         </svg>
         Continuer avec Google
       </button>
+
+      {/* Bouton Invité */}
+      <button 
+        onClick={onGuest}
+        className="w-full flex items-center justify-center gap-3 bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 px-4 rounded-lg transition-all"
+      >
+        <UserIcon className="w-5 h-5" />
+        Continuer en Invité
+      </button>
+
     </Card>
-    <p className="mt-8 text-xs text-slate-400">Vos données sont privées et sécurisées par Google.</p>
+    <p className="mt-8 text-xs text-slate-400">Vos données sont privées et sécurisées.</p>
   </div>
 );
 
-// --- APPLICATION PRINCIPALE ---
+// --- APP PRINCIPALE ---
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   
-  // Formulaire d'ajout
   const [formData, setFormData] = useState({
     label: '', amount: '', date: new Date().toISOString().split('T')[0],
     type: 'expense' as TransactionType, category: 'needs' as CategoryType
   });
 
-  // 1. Gérer la connexion utilisateur
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -118,13 +127,11 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 2. Charger les données DEPUIS FIREBASE
   useEffect(() => {
     if (!user) {
       setTransactions([]); 
       return;
     }
-    // Chaque utilisateur a sa propre collection privée "transactions"
     const q = query(
       collection(db, "users", user.uid, "transactions"), 
       orderBy("date", "desc")
@@ -140,9 +147,13 @@ export default function App() {
     return () => unsubscribe();
   }, [user]);
 
-  // Actions
-  const handleLogin = async () => {
-    try { await signInWithPopup(auth, provider); } catch (error) { console.error(error); }
+  // Actions de connexion
+  const handleGoogleLogin = async () => {
+    try { await signInWithPopup(auth, googleProvider); } catch (error) { console.error(error); }
+  };
+
+  const handleGuestLogin = async () => {
+    try { await signInAnonymously(auth); } catch (error) { console.error(error); }
   };
 
   const handleLogout = () => signOut(auth);
@@ -160,24 +171,22 @@ export default function App() {
         category: formData.category,
         createdAt: new Date()
       });
-      // Reset du formulaire
       setFormData({ ...formData, label: '', amount: '' });
-      // Si on est sur mobile/dashboard, on bascule sur la vue transactions pour voir l'ajout
       if (window.innerWidth < 768) setActiveTab('transactions');
     } catch (err) {
       console.error("Erreur ajout:", err);
-      alert("Erreur: Vérifiez votre connexion internet");
+      alert("Erreur connexion");
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!user) return;
-    if (confirm("Supprimer cette opération ?")) {
+    if (confirm("Supprimer ?")) {
       await deleteDoc(doc(db, "users", user.uid, "transactions", id));
     }
   };
 
-  // Calculs Statistiques
+  // Calculs
   const stats = transactions.reduce((acc, t) => {
     if (t.type === 'income') acc.totalIncome += t.amount;
     else {
@@ -195,14 +204,15 @@ export default function App() {
     { name: 'Épargne (20%)', value: stats.expensesByCategory.savings || 0, color: '#22c55e', target: 0.2 },
   ];
 
-  // Rendu conditionnel
-  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 text-slate-500">Chargement...</div>;
-  if (!user) return <LoginScreen onLogin={handleLogin} />;
+  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50">Chargement...</div>;
+  
+  // Si pas connecté, afficher l'écran de login avec les 2 choix
+  if (!user) return <LoginScreen onGoogle={handleGoogleLogin} onGuest={handleGuestLogin} />;
+
+  const displayName = user.isAnonymous ? "Invité" : (user.displayName?.split(' ')[0] || "Utilisateur");
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-20 md:pb-0">
-      
-      {/* HEADER */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -213,7 +223,10 @@ export default function App() {
               <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 leading-tight">
                 FinanceFlow
               </h1>
-              <p className="text-xs text-slate-400 font-medium">Bonjour, {user.displayName?.split(' ')[0]}</p>
+              <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
+                {user.isAnonymous && <UserIcon className="w-3 h-3" />}
+                Bonjour, {displayName}
+              </p>
             </div>
           </div>
           <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all" title="Se déconnecter">
@@ -223,8 +236,6 @@ export default function App() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6">
-        
-        {/* NAVIGATION */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           {[
             { id: 'dashboard', icon: BarChart3, label: 'Tableau de bord' },
@@ -243,7 +254,6 @@ export default function App() {
           ))}
         </div>
 
-        {/* VUE: DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -299,7 +309,6 @@ export default function App() {
           </div>
         )}
 
-        {/* VUE: TRANSACTIONS */}
         {activeTab === 'transactions' && (
           <div className="grid lg:grid-cols-3 gap-6">
             <Card className="p-6 h-fit sticky top-24">
@@ -369,7 +378,6 @@ export default function App() {
           </div>
         )}
         
-        {/* VUE: ANALYSE */}
         {activeTab === 'analysis' && (
            <div className="text-center py-10 text-slate-500">
              <Target className="w-12 h-12 mx-auto mb-4 text-slate-300" />
