@@ -27,7 +27,7 @@ import {
   Wallet, BarChart3, PlusCircle, Target, TrendingUp, TrendingDown, 
   ArrowUpRight, ArrowDownRight, Trash2, LogOut, User as UserIcon, 
   Calendar, Filter, AlertCircle, Moon, Sun, Mail, Lock, Repeat, CheckCircle, Workflow,
-  Github, Twitter, Linkedin, Instagram, Discord
+  Github, Discord, Linkedin, Instagram
 } from 'lucide-react';
 
 // --- CONFIGURATION FIREBASE ---
