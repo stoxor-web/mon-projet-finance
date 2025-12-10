@@ -111,7 +111,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   
-  // NOUVEAU : État pour le filtre mensuel (Format "YYYY-MM")
+  // FILTRE MENSUEL (Par défaut : Mois en cours)
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
 
   const [formData, setFormData] = useState({
@@ -170,6 +170,7 @@ export default function App() {
         createdAt: new Date()
       });
       setFormData({ ...formData, label: '', amount: '' });
+      // On redirige si on est sur mobile
       if (window.innerWidth < 768) setActiveTab('transactions');
     } catch (err) {
       console.error("Erreur ajout:", err);
@@ -184,12 +185,11 @@ export default function App() {
     }
   };
 
-  // --- FILTRAGE ET CALCULS ---
-  
-  // 1. On ne garde que les transactions du mois sélectionné
+  // --- LOGIQUE DE FILTRAGE ---
+  // On ne garde que les transactions qui correspondent au mois choisi
   const filteredTransactions = transactions.filter(t => t.date.startsWith(currentMonth));
 
-  // 2. On calcule les stats sur cette base filtrée
+  // On calcule les stats UNIQUEMENT sur le mois choisi
   const stats = filteredTransactions.reduce((acc, t) => {
     if (t.type === 'income') acc.totalIncome += t.amount;
     else {
@@ -237,7 +237,7 @@ export default function App() {
             </button>
           </div>
 
-          {/* SÉLECTEUR DE MOIS (Au centre/droite) */}
+          {/* SÉLECTEUR DE MOIS (Le cœur de la fonctionnalité) */}
           <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200 w-full md:w-auto">
             <Calendar className="w-5 h-5 text-slate-500 ml-2" />
             <input 
@@ -273,6 +273,7 @@ export default function App() {
           ))}
         </div>
 
+        {/* --- VUE DASHBOARD (Filtrée) --- */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -281,11 +282,11 @@ export default function App() {
                 <h3 className="text-3xl font-bold mt-1">{formatCurrency(balance)}</h3>
               </Card>
               <Card className="p-6">
-                <p className="text-slate-500 text-sm">Revenus (Mois)</p>
+                <p className="text-slate-500 text-sm">Revenus ({currentMonth})</p>
                 <h3 className="text-2xl font-bold text-emerald-600">+{formatCurrency(stats.totalIncome)}</h3>
               </Card>
               <Card className="p-6">
-                <p className="text-slate-500 text-sm">Dépenses (Mois)</p>
+                <p className="text-slate-500 text-sm">Dépenses ({currentMonth})</p>
                 <h3 className="text-2xl font-bold text-rose-600">-{formatCurrency(stats.totalExpenses)}</h3>
               </Card>
             </div>
@@ -309,7 +310,7 @@ export default function App() {
                     <circle cx="50" cy="50" r="30" fill="white" />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center flex-col">
-                    <span className="text-xs text-slate-400">Dépenses</span>
+                    <span className="text-xs text-slate-400">Total Dépenses</span>
                     <span className="font-bold">{formatCurrency(stats.totalExpenses)}</span>
                   </div>
                </div>
@@ -328,6 +329,7 @@ export default function App() {
           </div>
         )}
 
+        {/* --- VUE TRANSACTIONS (Filtrée) --- */}
         {activeTab === 'transactions' && (
           <div className="grid lg:grid-cols-3 gap-6">
             <Card className="p-6 h-fit sticky top-24">
@@ -398,6 +400,7 @@ export default function App() {
           </div>
         )}
         
+        {/* --- VUE ANALYSE (RESTORÉE et FILTRÉE) --- */}
         {activeTab === 'analysis' && (
            <div className="space-y-6">
              <Card className="p-6">
@@ -410,7 +413,7 @@ export default function App() {
                   {pieData.map((cat, i) => {
                     const totalIncome = stats.totalIncome || 1; // Eviter division par 0
                     const targetAmount = totalIncome * cat.target;
-                    const percent = (cat.value / totalIncome) * 100;
+                    const percent = totalIncome > 0 ? (cat.value / totalIncome) * 100 : 0;
                     const isOver = cat.value > targetAmount;
                     
                     return (
@@ -421,18 +424,44 @@ export default function App() {
                             {formatCurrency(cat.value)} / {formatCurrency(targetAmount)}
                           </span>
                         </div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden relative">
+                          {/* Marqueur cible */}
+                          <div 
+                            className="absolute top-0 bottom-0 w-0.5 bg-slate-400 z-10" 
+                            style={{left: `${cat.target * 100}%`}}
+                          ></div>
                           <div 
                             className="h-full rounded-full transition-all duration-500" 
                             style={{width: `${Math.min(percent, 100)}%`, backgroundColor: cat.color}}
                           ></div>
                         </div>
-                        {isOver && <p className="text-xs text-rose-500 mt-1">Budget dépassé de {formatCurrency(cat.value - targetAmount)}</p>}
+                        {isOver ? (
+                          <p className="text-xs text-rose-500 mt-1 flex items-center gap-1">
+                            <TrendingUp className="w-3 h-3" />
+                            Budget dépassé de {formatCurrency(cat.value - targetAmount)}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-slate-400 mt-1">
+                            {percent.toFixed(1)}% des revenus (Cible : {cat.target * 100}%)
+                          </p>
+                        )}
                       </div>
                     )
                   })}
                </div>
              </Card>
+
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+               <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800">
+                 <strong>50% Besoins :</strong> Loyer, courses, factures indispensables.
+               </div>
+               <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 text-sm text-purple-800">
+                 <strong>30% Envies :</strong> Restos, sorties, plaisirs.
+               </div>
+               <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100 text-sm text-emerald-800">
+                 <strong>20% Épargne :</strong> Investissement et précaution.
+               </div>
+             </div>
            </div>
         )}
       </main>
