@@ -3,7 +3,7 @@ import { initializeApp } from "firebase/app";
 import { 
   getAuth, 
   signInWithPopup, 
-  signInAnonymously, // <-- Import pour le mode invité
+  signInAnonymously, 
   GoogleAuthProvider, 
   signOut, 
   onAuthStateChanged,
@@ -21,7 +21,7 @@ import {
 } from "firebase/firestore";
 import { 
   Wallet, BarChart3, PlusCircle, Target, TrendingUp, TrendingDown, 
-  ArrowUpRight, ArrowDownRight, Trash2, LogOut, User as UserIcon
+  ArrowUpRight, ArrowDownRight, Trash2, LogOut, User as UserIcon, Calendar
 } from 'lucide-react';
 
 // --- CONFIGURATION FIREBASE ---
@@ -62,7 +62,7 @@ const Card = ({ children, className = "" }: { children: React.ReactNode, classNa
   </div>
 );
 
-// --- NOUVEL ECRAN DE CONNEXION ---
+// --- ECRAN DE CONNEXION ---
 const LoginScreen = ({ onGoogle, onGuest }: { onGoogle: () => void, onGuest: () => void }) => (
   <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
     <div className="text-center mb-8">
@@ -77,10 +77,8 @@ const LoginScreen = ({ onGoogle, onGuest }: { onGoogle: () => void, onGuest: () 
       <div className="space-y-2 mb-6">
         <h2 className="text-xl font-bold text-slate-800">Bienvenue</h2>
         <p className="text-sm text-slate-400">Choisissez une méthode de connexion</p>
-        <p className="text-sm text-slate-400">Le mode invité ne sauvegarde pas vos données</p>
       </div>
 
-      {/* Bouton Google */}
       <button 
         onClick={onGoogle}
         className="w-full flex items-center justify-center gap-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium py-3 px-4 rounded-lg transition-all"
@@ -94,7 +92,6 @@ const LoginScreen = ({ onGoogle, onGuest }: { onGoogle: () => void, onGuest: () 
         Continuer avec Google
       </button>
 
-      {/* Bouton Invité */}
       <button 
         onClick={onGuest}
         className="w-full flex items-center justify-center gap-3 bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 px-4 rounded-lg transition-all"
@@ -102,7 +99,6 @@ const LoginScreen = ({ onGoogle, onGuest }: { onGoogle: () => void, onGuest: () 
         <UserIcon className="w-5 h-5" />
         Continuer en Invité
       </button>
-
     </Card>
     <p className="mt-8 text-xs text-slate-400">Vos données sont privées et sécurisées.</p>
   </div>
@@ -115,6 +111,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   
+  // NOUVEAU : État pour le filtre mensuel (Format "YYYY-MM")
+  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
+
   const [formData, setFormData] = useState({
     label: '', amount: '', date: new Date().toISOString().split('T')[0],
     type: 'expense' as TransactionType, category: 'needs' as CategoryType
@@ -148,15 +147,13 @@ export default function App() {
     return () => unsubscribe();
   }, [user]);
 
-  // Actions de connexion
+  // Actions
   const handleGoogleLogin = async () => {
     try { await signInWithPopup(auth, googleProvider); } catch (error) { console.error(error); }
   };
-
   const handleGuestLogin = async () => {
     try { await signInAnonymously(auth); } catch (error) { console.error(error); }
   };
-
   const handleLogout = () => signOut(auth);
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -187,8 +184,13 @@ export default function App() {
     }
   };
 
-  // Calculs
-  const stats = transactions.reduce((acc, t) => {
+  // --- FILTRAGE ET CALCULS ---
+  
+  // 1. On ne garde que les transactions du mois sélectionné
+  const filteredTransactions = transactions.filter(t => t.date.startsWith(currentMonth));
+
+  // 2. On calcule les stats sur cette base filtrée
+  const stats = filteredTransactions.reduce((acc, t) => {
     if (t.type === 'income') acc.totalIncome += t.amount;
     else {
       acc.totalExpenses += t.amount;
@@ -206,8 +208,6 @@ export default function App() {
   ];
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50">Chargement...</div>;
-  
-  // Si pas connecté, afficher l'écran de login avec les 2 choix
   if (!user) return <LoginScreen onGoogle={handleGoogleLogin} onGuest={handleGuestLogin} />;
 
   const displayName = user.isAnonymous ? "Invité" : (user.displayName?.split(' ')[0] || "Utilisateur");
@@ -215,22 +215,40 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-20 md:pb-0">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <Wallet className="w-6 h-6 text-white" />
+        <div className="max-w-5xl mx-auto px-4 py-4 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+          <div className="flex justify-between items-center w-full md:w-auto">
+            <div className="flex items-center gap-2">
+              <div className="bg-blue-600 p-2 rounded-lg">
+                <Wallet className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 leading-tight">
+                  Finance Flow
+                </h1>
+                <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
+                  {user.isAnonymous && <UserIcon className="w-3 h-3" />}
+                  Bonjour, {displayName}
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 leading-tight">
-                FinanceFlow
-              </h1>
-              <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                {user.isAnonymous && <UserIcon className="w-3 h-3" />}
-                Bonjour, {displayName}
-              </p>
-            </div>
+            {/* Logout Mobile */}
+            <button onClick={handleLogout} className="md:hidden p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all">
+              <LogOut className="w-5 h-5" />
+            </button>
           </div>
-          <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all" title="Se déconnecter">
+
+          {/* SÉLECTEUR DE MOIS (Au centre/droite) */}
+          <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200 w-full md:w-auto">
+            <Calendar className="w-5 h-5 text-slate-500 ml-2" />
+            <input 
+              type="month" 
+              value={currentMonth}
+              onChange={(e) => setCurrentMonth(e.target.value)}
+              className="bg-transparent border-none outline-none text-slate-700 font-medium text-sm w-full md:w-auto"
+            />
+          </div>
+
+          <button onClick={handleLogout} className="hidden md:block p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all" title="Se déconnecter">
             <LogOut className="w-5 h-5" />
           </button>
         </div>
@@ -259,15 +277,15 @@ export default function App() {
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="p-6 bg-blue-600 text-white border-none">
-                <p className="text-blue-100 text-sm">Solde Actuel</p>
+                <p className="text-blue-100 text-sm">Solde du Mois</p>
                 <h3 className="text-3xl font-bold mt-1">{formatCurrency(balance)}</h3>
               </Card>
               <Card className="p-6">
-                <p className="text-slate-500 text-sm">Revenus</p>
+                <p className="text-slate-500 text-sm">Revenus (Mois)</p>
                 <h3 className="text-2xl font-bold text-emerald-600">+{formatCurrency(stats.totalIncome)}</h3>
               </Card>
               <Card className="p-6">
-                <p className="text-slate-500 text-sm">Dépenses</p>
+                <p className="text-slate-500 text-sm">Dépenses (Mois)</p>
                 <h3 className="text-2xl font-bold text-rose-600">-{formatCurrency(stats.totalExpenses)}</h3>
               </Card>
             </div>
@@ -291,7 +309,7 @@ export default function App() {
                     <circle cx="50" cy="50" r="30" fill="white" />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center flex-col">
-                    <span className="text-xs text-slate-400">Total</span>
+                    <span className="text-xs text-slate-400">Dépenses</span>
                     <span className="font-bold">{formatCurrency(stats.totalExpenses)}</span>
                   </div>
                </div>
@@ -344,11 +362,11 @@ export default function App() {
 
             <Card className="lg:col-span-2 overflow-hidden flex flex-col h-[500px]">
               <div className="p-4 bg-slate-50 border-b border-slate-200 font-bold flex justify-between items-center">
-                <span>Historique</span>
-                <span className="text-xs bg-white px-2 py-1 rounded border border-slate-200">{transactions.length}</span>
+                <span>Historique ({currentMonth})</span>
+                <span className="text-xs bg-white px-2 py-1 rounded border border-slate-200">{filteredTransactions.length}</span>
               </div>
               <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
-                {transactions.map(t => (
+                {filteredTransactions.map(t => (
                   <div key={t.id} className="p-4 flex justify-between items-center hover:bg-slate-50 group transition-colors">
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center ${t.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
@@ -369,9 +387,10 @@ export default function App() {
                     </div>
                   </div>
                 ))}
-                {transactions.length === 0 && (
+                {filteredTransactions.length === 0 && (
                    <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2">
-                     <p>Aucune transaction</p>
+                     <Calendar className="w-8 h-8 text-slate-200" />
+                     <p>Aucune transaction pour ce mois.</p>
                    </div>
                 )}
               </div>
@@ -380,10 +399,40 @@ export default function App() {
         )}
         
         {activeTab === 'analysis' && (
-           <div className="text-center py-10 text-slate-500">
-             <Target className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-             <h3 className="text-lg font-medium text-slate-900">Analyse détaillée</h3>
-             <p>Consultez le tableau de bord pour la vue d'ensemble.</p>
+           <div className="space-y-6">
+             <Card className="p-6">
+               <div className="flex justify-between items-center mb-6">
+                 <h3 className="font-bold text-lg text-slate-800">Analyse 50/30/20 du Mois</h3>
+                 <span className="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full">{currentMonth}</span>
+               </div>
+               
+               <div className="space-y-6">
+                  {pieData.map((cat, i) => {
+                    const totalIncome = stats.totalIncome || 1; // Eviter division par 0
+                    const targetAmount = totalIncome * cat.target;
+                    const percent = (cat.value / totalIncome) * 100;
+                    const isOver = cat.value > targetAmount;
+                    
+                    return (
+                      <div key={i}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="font-medium">{cat.name}</span>
+                          <span className={isOver ? "text-rose-600 font-bold" : "text-slate-600"}>
+                            {formatCurrency(cat.value)} / {formatCurrency(targetAmount)}
+                          </span>
+                        </div>
+                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full rounded-full transition-all duration-500" 
+                            style={{width: `${Math.min(percent, 100)}%`, backgroundColor: cat.color}}
+                          ></div>
+                        </div>
+                        {isOver && <p className="text-xs text-rose-500 mt-1">Budget dépassé de {formatCurrency(cat.value - targetAmount)}</p>}
+                      </div>
+                    )
+                  })}
+               </div>
+             </Card>
            </div>
         )}
       </main>
