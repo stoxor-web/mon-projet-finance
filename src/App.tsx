@@ -115,7 +115,7 @@ export default function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   
   // --- NOUVEAUX ÉTATS POUR LE FILTRE ---
-  const [filterType, setFilterType] = useState<'month' | 'year' | 'all'>('month');
+  const [filterType, setFilterType] = useState<'month' | 'year' | 'all'>('all');
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7)); // "YYYY-MM"
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear().toString()); // "YYYY"
 
