@@ -132,8 +132,7 @@ const Footer = () => (
            <span className="font-bold text-slate-900 dark:text-white text-sm">Finance Flow</span>
         </div>
         <p className="text-xs text-slate-400">
-          © {new Date().getFullYear()} Finance Flow by STOXOR. Fait avec ❤️ à Paris.
-        </p>
+          © {new Date().getFullYear()} Finance Flow by STOXOR.
       </div>
     </div>
   </footer>
