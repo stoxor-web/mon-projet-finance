@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Chart } from "react-google-charts"; // <-- Import pour le graphique de flux
 import { initializeApp } from "firebase/app";
 import { 
   getAuth, 
@@ -25,7 +26,7 @@ import {
 import { 
   Wallet, BarChart3, PlusCircle, Target, TrendingUp, TrendingDown, 
   ArrowUpRight, ArrowDownRight, Trash2, LogOut, User as UserIcon, 
-  Calendar, Filter, AlertCircle, Moon, Sun, Mail, Lock, Repeat, CheckCircle
+  Calendar, Filter, AlertCircle, Moon, Sun, Mail, Lock, Repeat, CheckCircle, Workflow
 } from 'lucide-react';
 
 // --- CONFIGURATION FIREBASE ---
@@ -284,7 +285,7 @@ export default function App() {
     alert(`${generatedCount} opérations générées !`);
   };
 
-  // Stats
+  // Stats & Filtering
   const filteredTransactions = transactions.filter(t => {
     if (filterType === 'all') return true;
     if (filterType === 'year') return t.date.startsWith(currentYear);
@@ -307,6 +308,70 @@ export default function App() {
     { name: 'Envies', value: stats.expensesByCategory.wants || 0, color: '#a855f7', target: 0.3 },
     { name: 'Épargne', value: stats.expensesByCategory.savings || 0, color: '#22c55e', target: 0.2 },
   ];
+
+  // --- PRÉPARATION DES DONNÉES SANKEY ---
+  const prepareSankeyData = () => {
+    const data: any[] = [["De", "À", "Montant"]]; // Header obligatoire
+    
+    // 1. REVENUS (Source)
+    const totalIncome = filteredTransactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    if (totalIncome === 0) return null; // Pas de données à afficher
+
+    // 2. DISTRIBUTION DANS LES CATÉGORIES (Niveau 1)
+    const expensesByCat = filteredTransactions
+      .filter(t => t.type === 'expense')
+      .reduce((acc, t) => {
+        acc[t.category] = (acc[t.category] || 0) + t.amount;
+        return acc;
+      }, { needs: 0, wants: 0, savings: 0 } as Record<string, number>);
+
+    // Si on a des dépenses, on crée les liens Revenus -> Catégorie
+    if (expensesByCat.needs > 0) data.push(["Revenus", "Besoins (50%)", expensesByCat.needs]);
+    if (expensesByCat.wants > 0) data.push(["Revenus", "Envies (30%)", expensesByCat.wants]);
+    if (expensesByCat.savings > 0) data.push(["Revenus", "Épargne (20%)", expensesByCat.savings]);
+
+    // Reste (Solde non dépensé)
+    const remaining = totalIncome - (expensesByCat.needs + expensesByCat.wants + expensesByCat.savings);
+    if (remaining > 0) data.push(["Revenus", "Solde Restant", remaining]);
+
+    // 3. DÉTAIL DES DÉPENSES (Niveau 2)
+    // On groupe les dépenses par libellé pour éviter d'avoir 50 fils "Uber"
+    const expensesByLabelAndCat = filteredTransactions
+      .filter(t => t.type === 'expense')
+      .reduce((acc, t) => {
+        const key = `${t.category}-${t.label}`;
+        if (!acc[key]) acc[key] = { ...t, amount: 0 };
+        acc[key].amount += t.amount;
+        return acc;
+      }, {} as Record<string, Transaction>);
+
+    Object.values(expensesByLabelAndCat).forEach(t => {
+      let sourceName = "";
+      if (t.category === 'needs') sourceName = "Besoins (50%)";
+      if (t.category === 'wants') sourceName = "Envies (30%)";
+      if (t.category === 'savings') sourceName = "Épargne (20%)";
+      
+      // On ajoute la ligne : Catégorie -> Nom de la dépense
+      data.push([sourceName, t.label, t.amount]);
+    });
+
+    return data;
+  };
+
+  const sankeyData = prepareSankeyData();
+  const sankeyOptions = {
+    sankey: {
+      node: {
+        colors: isDarkMode ? ['#60a5fa', '#3b82f6', '#a855f7', '#22c55e', '#94a3b8'] : ['#2563eb', '#3b82f6', '#a855f7', '#22c55e', '#64748b'],
+        label: { color: isDarkMode ? '#ffffff' : '#000000', fontSize: 13, bold: true }
+      },
+      link: { colorMode: 'gradient' }
+    },
+    tooltip: { isHtml: true }
+  };
 
   const getFilterLabel = () => filterType === 'all' ? "Global" : (filterType === 'year' ? currentYear : currentMonth);
   const displayName = user?.isAnonymous ? "Invité" : (user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || "Utilisateur");
@@ -359,6 +424,7 @@ export default function App() {
             { id: 'transactions', icon: PlusCircle, label: 'Transactions' },
             { id: 'recurring', icon: Repeat, label: 'Récurrent' },
             { id: 'analysis', icon: Target, label: 'Analyse' },
+            { id: 'flow', icon: Workflow, label: 'Flux' }, // NOUVEL ONGLET
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-slate-900 dark:bg-blue-600 text-white shadow-md' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'}`}>
               <tab.icon className="w-4 h-4" /> {tab.label}
@@ -366,6 +432,7 @@ export default function App() {
           ))}
         </div>
 
+        {/* DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
             {pendingRecurringCount > 0 && (
@@ -429,6 +496,7 @@ export default function App() {
           </div>
         )}
 
+        {/* TRANSACTIONS */}
         {activeTab === 'transactions' && (
           <div className="grid lg:grid-cols-3 gap-6">
             <Card className="p-6 h-fit sticky top-24">
@@ -484,7 +552,7 @@ export default function App() {
           </div>
         )}
 
-        {/* NOUVEL ONGLET : RÉCURRENT */}
+        {/* RÉCURRENT */}
         {activeTab === 'recurring' && (
           <div className="grid lg:grid-cols-3 gap-6">
             <Card className="p-6 h-fit">
@@ -580,6 +648,37 @@ export default function App() {
                <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-lg border border-emerald-100 dark:border-emerald-800 text-sm text-emerald-800 dark:text-emerald-300"><strong>20% Épargne :</strong> Investissement futur.</div>
              </div>
            </div>
+        )}
+
+        {/* NOUVEL ONGLET : FLUX (SANKEY) */}
+        {activeTab === 'flow' && (
+          <div className="space-y-6">
+            <Card className="p-6 h-[600px] flex flex-col">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="font-bold text-lg text-slate-800 dark:text-white">Flux de trésorerie</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Visualisez où part votre argent ({getFilterLabel()})</p>
+                </div>
+              </div>
+              {sankeyData && sankeyData.length > 1 ? (
+                <div className="flex-1 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
+                  <Chart
+                    chartType="Sankey"
+                    width="100%"
+                    height="100%"
+                    data={sankeyData}
+                    options={sankeyOptions}
+                  />
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+                  <Workflow className="w-12 h-12 mb-2 opacity-50" />
+                  <p>Pas assez de données pour générer le flux.</p>
+                  <p className="text-sm">Ajoutez des revenus et des dépenses pour voir le graphique.</p>
+                </div>
+              )}
+            </Card>
+          </div>
         )}
       </main>
     </div>
