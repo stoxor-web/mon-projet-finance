@@ -25,14 +25,14 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION FIREBASE ---
-const firebaseConfig = {
-  apiKey: "AIzaSyCy5hc12pARoVFOxuFHBeQaWxSfQKbSkq0",
-  authDomain: "financeflow-11a6a.firebaseapp.com",
-  projectId: "financeflow-11a6a",
-  storageBucket: "financeflow-11a6a.firebasestorage.app",
-  messagingSenderId: "840695020676",
-  appId: "1:840695020676:web:f69a81bd79915197a916d1"
-};
+  const firebaseConfig = {
+    apiKey: "AIzaSyCy5hc12pARoVFOxuFHBeQaWxSfQKbSkq0",
+    authDomain: "financeflow-11a6a.firebaseapp.com",
+    projectId: "financeflow-11a6a",
+    storageBucket: "financeflow-11a6a.firebasestorage.app",
+    messagingSenderId: "840695020676",
+    appId: "1:840695020676:web:ff3c57720b44cd5ea916d1"
+  };
 
 // Initialisation
 const app = initializeApp(firebaseConfig);
