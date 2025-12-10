@@ -3,7 +3,9 @@ import { initializeApp } from "firebase/app";
 import { 
   getAuth, 
   signInWithPopup, 
-  signInAnonymously, 
+  signInAnonymously,
+  signInWithEmailAndPassword, // <-- Nouvel import
+  createUserWithEmailAndPassword, // <-- Nouvel import
   GoogleAuthProvider, 
   signOut, 
   onAuthStateChanged,
@@ -21,7 +23,7 @@ import {
 } from "firebase/firestore";
 import { 
   Wallet, BarChart3, PlusCircle, Target, TrendingUp, TrendingDown, 
-  ArrowUpRight, ArrowDownRight, Trash2, LogOut, User as UserIcon, Calendar, Filter, AlertCircle, Moon, Sun
+  ArrowUpRight, ArrowDownRight, Trash2, LogOut, User as UserIcon, Calendar, Filter, AlertCircle, Moon, Sun, Mail, Lock
 } from 'lucide-react';
 
 // --- CONFIGURATION FIREBASE ---
@@ -57,53 +59,136 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
 
 const Card = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  // Ajout de dark:bg-slate-800 et dark:border-slate-700 pour le mode nuit
   <div className={`bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 ${className}`}>
     {children}
   </div>
 );
 
-// --- ECRAN DE CONNEXION ---
-const LoginScreen = ({ onGoogle, onGuest }: { onGoogle: () => void, onGuest: () => void }) => (
-  <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-4 transition-colors duration-300">
-    <div className="text-center mb-8">
-      <div className="bg-blue-600 p-3 rounded-xl w-fit mx-auto mb-4 shadow-lg shadow-blue-200 dark:shadow-none">
-        <Wallet className="w-8 h-8 text-white" />
+// --- ECRAN DE CONNEXION (COMPLET) ---
+const LoginScreen = ({ onGoogle, onGuest }: { onGoogle: () => void, onGuest: () => void }) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false); // Basculer entre Login et Inscription
+  const [error, setError] = useState<string | null>(null);
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      if (isSignUp) {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+    } catch (err: any) {
+      console.error(err.code);
+      // Traduction des erreurs fréquentes
+      if (err.code === 'auth/invalid-email') setError("L'adresse email est invalide.");
+      else if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') setError("Email ou mot de passe incorrect.");
+      else if (err.code === 'auth/wrong-password') setError("Mot de passe incorrect.");
+      else if (err.code === 'auth/email-already-in-use') setError("Cet email est déjà utilisé.");
+      else if (err.code === 'auth/weak-password') setError("Le mot de passe doit faire 6 caractères minimum.");
+      else setError("Une erreur est survenue. Vérifiez vos informations.");
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-4 transition-colors duration-300">
+      <div className="text-center mb-8">
+        <div className="bg-blue-600 p-3 rounded-xl w-fit mx-auto mb-4 shadow-lg shadow-blue-200 dark:shadow-none">
+          <Wallet className="w-8 h-8 text-white" />
+        </div>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Finance Flow by STOXOR</h1>
+        <p className="text-slate-500 dark:text-slate-400">Gérez vos finances avec l'outil développé par STOXOR</p>
       </div>
-      <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Finance Flow by STOXOR</h1>
-      <p className="text-slate-500 dark:text-slate-400">Gérez vos finances avec l'outil développé par STOXOR</p>
+      
+      <Card className="p-8 max-w-sm w-full space-y-6">
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white">
+            {isSignUp ? "Créer un compte" : "Bienvenue"}
+          </h2>
+          <p className="text-sm text-slate-400">Entrez vos identifiants pour continuer</p>
+        </div>
+
+        {/* FORMULAIRE EMAIL */}
+        <form onSubmit={handleEmailAuth} className="space-y-4">
+          {error && (
+            <div className="bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-300 text-xs p-3 rounded-lg flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {error}
+            </div>
+          )}
+          
+          <div className="space-y-3">
+            <div className="relative">
+              <Mail className="w-5 h-5 text-slate-400 absolute left-3 top-2.5" />
+              <input 
+                type="email" 
+                placeholder="Email" 
+                required
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+              />
+            </div>
+            <div className="relative">
+              <Lock className="w-5 h-5 text-slate-400 absolute left-3 top-2.5" />
+              <input 
+                type="password" 
+                placeholder="Mot de passe" 
+                required
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition-colors">
+            {isSignUp ? "S'inscrire" : "Se connecter"}
+          </button>
+        </form>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200 dark:border-slate-700"></div></div>
+          <div className="relative flex justify-center text-xs uppercase"><span className="bg-white dark:bg-slate-800 px-2 text-slate-400">Ou continuer avec</span></div>
+        </div>
+
+        <div className="space-y-3">
+          <button 
+            onClick={onGoogle}
+            className="w-full flex items-center justify-center gap-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white font-medium py-2 px-4 rounded-lg transition-all text-sm"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            Google
+          </button>
+
+          <button 
+            onClick={onGuest}
+            className="w-full flex items-center justify-center gap-3 bg-slate-900 dark:bg-slate-600 hover:bg-slate-800 dark:hover:bg-slate-500 text-white font-medium py-2 px-4 rounded-lg transition-all text-sm"
+          >
+            <UserIcon className="w-4 h-4" />
+            Mode Invité
+          </button>
+        </div>
+
+        <div className="text-center mt-4">
+          <button 
+            onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            {isSignUp ? "J'ai déjà un compte" : "Pas de compte ? S'inscrire"}
+          </button>
+        </div>
+      </Card>
     </div>
-    
-    <Card className="p-8 max-w-sm w-full text-center space-y-4">
-      <div className="space-y-2 mb-6">
-        <h2 className="text-xl font-bold text-slate-800 dark:text-white">Bienvenue</h2>
-        <p className="text-sm text-slate-400">Choisissez une méthode de connexion</p>
-      </div>
-
-      <button 
-        onClick={onGoogle}
-        className="w-full flex items-center justify-center gap-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white font-medium py-3 px-4 rounded-lg transition-all"
-      >
-        <svg className="w-5 h-5" viewBox="0 0 24 24">
-          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-        </svg>
-        Continuer avec Google
-      </button>
-
-      <button 
-        onClick={onGuest}
-        className="w-full flex items-center justify-center gap-3 bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-all"
-      >
-        <UserIcon className="w-5 h-5" />
-        Continuer en Invité
-      </button>
-    </Card>
-    <p className="mt-8 text-xs text-slate-400">Vos données sont privées et sécurisées.</p>
-  </div>
-);
+  );
+};
 
 // --- APP PRINCIPALE ---
 export default function App() {
@@ -114,7 +199,6 @@ export default function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   
   // GESTION DU MODE SOMBRE
-  // On regarde dans le navigateur s'il y a une préférence enregistrée
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('theme') === 'dark';
@@ -132,7 +216,7 @@ export default function App() {
     type: 'expense' as TransactionType, category: 'needs' as CategoryType
   });
 
-  // Effet pour le Dark Mode : Ajoute ou retire la classe 'dark' sur le HTML
+  // Effet pour le Dark Mode
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -143,6 +227,7 @@ export default function App() {
     }
   }, [isDarkMode]);
 
+  // Auth Listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -151,6 +236,7 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // Data Listener
   useEffect(() => {
     if (!user) {
       setTransactions([]); 
@@ -227,7 +313,7 @@ export default function App() {
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 text-slate-500">Chargement...</div>;
   if (!user) return <LoginScreen onGoogle={handleGoogleLogin} onGuest={handleGuestLogin} />;
 
-  const displayName = user.isAnonymous ? "Invité" : (user.displayName?.split(' ')[0] || "Utilisateur");
+  const displayName = user.isAnonymous ? "Invité" : (user.displayName?.split(' ')[0] || user.email?.split('@')[0] || "Utilisateur");
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans pb-20 md:pb-0 transition-colors duration-300">
@@ -343,6 +429,7 @@ export default function App() {
           ))}
         </div>
 
+        {/* DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -376,7 +463,6 @@ export default function App() {
                       acc.currentAngle += angle;
                       return acc;
                     }, { currentAngle: 0, elements: [] }).elements}
-                    {/* Le cercle central change de couleur en mode sombre */}
                     <circle cx="50" cy="50" r="30" fill={isDarkMode ? "#1e293b" : "white"} />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center flex-col">
@@ -399,6 +485,7 @@ export default function App() {
           </div>
         )}
 
+        {/* TRANSACTIONS */}
         {activeTab === 'transactions' && (
           <div className="grid lg:grid-cols-3 gap-6">
             <Card className="p-6 h-fit sticky top-24">
@@ -469,6 +556,7 @@ export default function App() {
           </div>
         )}
         
+        {/* ANALYSE */}
         {activeTab === 'analysis' && (
            <div className="space-y-6">
              <Card className="p-6">
