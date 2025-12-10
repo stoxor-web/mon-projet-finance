@@ -2,7 +2,7 @@ export type TransactionType = 'income' | 'expense';
 export type CategoryType = 'needs' | 'wants' | 'savings' | 'salary';
 
 export interface Transaction {
-  id: number;
+  id: string;
   date: string;
   label: string;
   amount: number;
@@ -10,13 +10,14 @@ export interface Transaction {
   category: CategoryType;
 }
 
-export interface FinanceStats {
-  totalIncome: number;
-  totalExpenses: number;
-  balance: number;
-  expensesByCategory: {
-    needs: number;
-    wants: number;
-    savings: number;
-  };
+export interface RecurringItem {
+  id: string;
+  label: string;
+  amount: number;
+  type: TransactionType;
+  category: CategoryType;
+  frequency: 'monthly';
+  startDate: string;
+  durationMonths: number;
+  lastGenerated: string;
 }
