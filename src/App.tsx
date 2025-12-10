@@ -77,6 +77,8 @@ const LoginScreen = ({ onGoogle, onGuest }: { onGoogle: () => void, onGuest: () 
       <div className="space-y-2 mb-6">
         <h2 className="text-xl font-bold text-slate-800">Bienvenue</h2>
         <p className="text-sm text-slate-400">Choisissez une méthode de connexion</p>
+        <p className="text-sm text-slate-400">Le mode invité ne sauvegarde pas les données</p>
+        <p className="text-sm text-slate-400">La connexion google sauvegarde vos données</p>
       </div>
 
       <button 
