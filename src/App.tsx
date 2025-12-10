@@ -26,12 +26,12 @@ import {
 
 // --- CONFIGURATION FIREBASE ---
 const firebaseConfig = {
-  apiKey: "AIzaSyCy5hc12pARoVFOxuFHBeQaWxSfQKbSkq0",
-  authDomain: "financeflow-11a6a.firebaseapp.com",
-  projectId: "financeflow-11a6a",
-  storageBucket: "financeflow-11a6a.firebasestorage.app",
-  messagingSenderId: "840695020676",
-  appId: "1:840695020676:web:f69a81bd79915197a916d1"
+  apiKey: "AIzaSyAAKdOZCiJ9uGqmgmdoqp_-IioTScFsU0I",
+  authDomain: "financeflowbystoxor.firebaseapp.com",
+  projectId: "financeflowbystoxor",
+  storageBucket: "financeflowbystoxor.firebasestorage.app",
+  messagingSenderId: "43977997722",
+  appId: "1:43977997722:web:d055af7410b66567538e23"
 };
 
 // Initialisation
