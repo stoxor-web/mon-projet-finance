@@ -21,7 +21,7 @@ import {
 } from "firebase/firestore";
 import { 
   Wallet, BarChart3, PlusCircle, Target, TrendingUp, TrendingDown, 
-  ArrowUpRight, ArrowDownRight, Trash2, LogOut, User as UserIcon, Calendar, Filter
+  ArrowUpRight, ArrowDownRight, Trash2, LogOut, User as UserIcon, Calendar, Filter, AlertCircle
 } from 'lucide-react';
 
 // --- CONFIGURATION FIREBASE ---
@@ -108,6 +108,7 @@ const LoginScreen = ({ onGoogle, onGuest }: { onGoogle: () => void, onGuest: () 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null); // Pour afficher les erreurs de base de données
   const [activeTab, setActiveTab] = useState('dashboard');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   
@@ -139,13 +140,19 @@ export default function App() {
       orderBy("date", "desc")
     );
 
+    // Ajout d'un gestionnaire d'erreur ici
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Transaction[];
       setTransactions(docs);
+      setErrorMsg(null); // Tout va bien
+    }, (error) => {
+      console.error("Erreur Firestore:", error);
+      setErrorMsg("Impossible d'accéder à la base de données. Vérifiez les 'Règles' dans la console Firebase.");
     });
+    
     return () => unsubscribe();
   }, [user]);
 
@@ -175,7 +182,7 @@ export default function App() {
       if (window.innerWidth < 768) setActiveTab('transactions');
     } catch (err) {
       console.error("Erreur ajout:", err);
-      alert("Erreur connexion");
+      alert("Erreur d'écriture. Vérifiez vos droits d'accès sur Firebase.");
     }
   };
 
@@ -293,6 +300,14 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      {/* Message d'erreur visible si les règles Firebase bloquent */}
+      {errorMsg && (
+        <div className="bg-rose-100 border-l-4 border-rose-500 text-rose-700 p-4 m-4" role="alert">
+          <p className="font-bold flex items-center gap-2"><AlertCircle className="w-5 h-5"/> Erreur de configuration</p>
+          <p>{errorMsg}</p>
+        </div>
+      )}
 
       <main className="max-w-5xl mx-auto px-4 py-6">
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
