@@ -70,7 +70,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => (
       <div className="bg-blue-600 p-3 rounded-xl w-fit mx-auto mb-4 shadow-lg shadow-blue-200">
         <Wallet className="w-8 h-8 text-white" />
       </div>
-      <h1 className="text-3xl font-bold text-slate-900 mb-2">FinanceFlow</h1>
+      <h1 className="text-3xl font-bold text-slate-900 mb-2">Finance Flow by STOXOR</h1>
       <p className="text-slate-500">Gérez vos finances avec l'outil Finances Flow développer par STOXOR</p>
     </div>
     
