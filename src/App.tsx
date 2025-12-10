@@ -27,7 +27,7 @@ import {
   Wallet, BarChart3, PlusCircle, Target, TrendingUp, TrendingDown, 
   ArrowUpRight, ArrowDownRight, Trash2, LogOut, User as UserIcon, 
   Calendar, Filter, AlertCircle, Moon, Sun, Mail, Lock, Repeat, CheckCircle, Workflow,
-  Github, Discord, Linkedin, Instagram
+  Github, Twitter, Linkedin, Instagram
 } from 'lucide-react';
 
 // --- CONFIGURATION FIREBASE ---
@@ -70,6 +70,20 @@ interface RecurringItem {
   durationMonths: number;
   lastGenerated: string;
 }
+
+// Dictionnaire de traduction
+const categoryLabels: Record<string, string> = {
+  needs: 'Besoins',
+  wants: 'Envies',
+  savings: 'Épargne',
+  salary: 'Salaire'
+};
+
+// Fonction pour obtenir le label propre
+const getDisplayCategory = (type: TransactionType, category: string) => {
+  if (type === 'income') return 'Revenu';
+  return categoryLabels[category] || category;
+};
 
 const formatCurrency = (amount: number) => 
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
@@ -118,7 +132,7 @@ const Footer = () => (
             Simplifiez la gestion de vos finances personnelles avec des outils intelligents.
           </p>
           <div className="flex gap-4">
-            <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Discord className="w-5 h-5" /></a>
+            <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Twitter className="w-5 h-5" /></a>
             <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Linkedin className="w-5 h-5" /></a>
             <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Instagram className="w-5 h-5" /></a>
             <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Github className="w-5 h-5" /></a>
@@ -132,7 +146,8 @@ const Footer = () => (
            <span className="font-bold text-slate-900 dark:text-white text-sm">Finance Flow</span>
         </div>
         <p className="text-xs text-slate-400">
-          © {new Date().getFullYear()} Finance Flow by STOXOR.
+          © {new Date().getFullYear()} Finance Flow by STOXOR. Fait avec ❤️ à Paris.
+        </p>
       </div>
     </div>
   </footer>
@@ -610,7 +625,7 @@ export default function App() {
                       </div>
                       <div>
                         <div className="font-medium text-slate-800 dark:text-slate-200">{t.label}</div>
-                        <div className="text-xs text-slate-400 dark:text-slate-500 capitalize">{t.date} • {t.category}</div>
+                        <div className="text-xs text-slate-400 dark:text-slate-500 capitalize">{t.date} • {getDisplayCategory(t.type, t.category)}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -672,7 +687,7 @@ export default function App() {
                       <div>
                         <div className="font-medium text-slate-800 dark:text-slate-200">{item.label}</div>
                         <div className="text-xs text-slate-400 dark:text-slate-500 capitalize">
-                          {item.durationMonths === 0 ? "Illimité" : `${item.durationMonths} Mois restants`} • {item.category}
+                          {item.durationMonths === 0 ? "Illimité" : `${item.durationMonths} Mois restants`} • {getDisplayCategory(item.type, item.category)}
                         </div>
                       </div>
                     </div>
