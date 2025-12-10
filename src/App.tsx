@@ -21,7 +21,7 @@ import {
 } from "firebase/firestore";
 import { 
   Wallet, BarChart3, PlusCircle, Target, TrendingUp, TrendingDown, 
-  ArrowUpRight, ArrowDownRight, Trash2, LogOut, User as UserIcon, Calendar
+  ArrowUpRight, ArrowDownRight, Trash2, LogOut, User as UserIcon, Calendar, Filter
 } from 'lucide-react';
 
 // --- CONFIGURATION FIREBASE ---
@@ -111,8 +111,10 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   
-  // FILTRE MENSUEL (Par défaut : Mois en cours)
-  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
+  // --- NOUVEAUX ÉTATS POUR LE FILTRE ---
+  const [filterType, setFilterType] = useState<'month' | 'year' | 'all'>('month');
+  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7)); // "YYYY-MM"
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear().toString()); // "YYYY"
 
   const [formData, setFormData] = useState({
     label: '', amount: '', date: new Date().toISOString().split('T')[0],
@@ -170,7 +172,6 @@ export default function App() {
         createdAt: new Date()
       });
       setFormData({ ...formData, label: '', amount: '' });
-      // On redirige si on est sur mobile
       if (window.innerWidth < 768) setActiveTab('transactions');
     } catch (err) {
       console.error("Erreur ajout:", err);
@@ -185,11 +186,14 @@ export default function App() {
     }
   };
 
-  // --- LOGIQUE DE FILTRAGE ---
-  // On ne garde que les transactions qui correspondent au mois choisi
-  const filteredTransactions = transactions.filter(t => t.date.startsWith(currentMonth));
+  // --- LOGIQUE DE FILTRAGE AVANCÉE ---
+  const filteredTransactions = transactions.filter(t => {
+    if (filterType === 'all') return true;
+    if (filterType === 'year') return t.date.startsWith(currentYear);
+    return t.date.startsWith(currentMonth);
+  });
 
-  // On calcule les stats UNIQUEMENT sur le mois choisi
+  // Calculs sur la base filtrée
   const stats = filteredTransactions.reduce((acc, t) => {
     if (t.type === 'income') acc.totalIncome += t.amount;
     else {
@@ -206,6 +210,12 @@ export default function App() {
     { name: 'Envies (30%)', value: stats.expensesByCategory.wants || 0, color: '#a855f7', target: 0.3 },
     { name: 'Épargne (20%)', value: stats.expensesByCategory.savings || 0, color: '#22c55e', target: 0.2 },
   ];
+
+  const getFilterLabel = () => {
+    if (filterType === 'all') return "Global";
+    if (filterType === 'year') return currentYear;
+    return currentMonth;
+  }
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50">Chargement...</div>;
   if (!user) return <LoginScreen onGoogle={handleGoogleLogin} onGuest={handleGuestLogin} />;
@@ -231,21 +241,51 @@ export default function App() {
                 </p>
               </div>
             </div>
-            {/* Logout Mobile */}
             <button onClick={handleLogout} className="md:hidden p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all">
               <LogOut className="w-5 h-5" />
             </button>
           </div>
 
-          {/* SÉLECTEUR DE MOIS (Le cœur de la fonctionnalité) */}
+          {/* BARRE DE FILTRE UNIFIÉE */}
           <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200 w-full md:w-auto">
-            <Calendar className="w-5 h-5 text-slate-500 ml-2" />
-            <input 
-              type="month" 
-              value={currentMonth}
-              onChange={(e) => setCurrentMonth(e.target.value)}
-              className="bg-transparent border-none outline-none text-slate-700 font-medium text-sm w-full md:w-auto"
-            />
+            <Filter className="w-4 h-4 text-slate-400 ml-2" />
+            
+            {/* Choix du mode */}
+            <select 
+              value={filterType} 
+              onChange={(e) => setFilterType(e.target.value as any)}
+              className="bg-transparent border-none outline-none text-slate-700 font-bold text-sm cursor-pointer"
+            >
+              <option value="month">Mois</option>
+              <option value="year">Année</option>
+              <option value="all">Tout</option>
+            </select>
+
+            {/* Input dynamique selon le mode */}
+            {filterType === 'month' && (
+              <>
+                <div className="w-px h-4 bg-slate-300 mx-1"></div>
+                <input 
+                  type="month" 
+                  value={currentMonth}
+                  onChange={(e) => setCurrentMonth(e.target.value)}
+                  className="bg-transparent border-none outline-none text-slate-700 font-medium text-sm w-full md:w-auto cursor-pointer"
+                />
+              </>
+            )}
+
+            {filterType === 'year' && (
+              <>
+                <div className="w-px h-4 bg-slate-300 mx-1"></div>
+                <input 
+                  type="number" 
+                  min="2020" max="2030"
+                  value={currentYear}
+                  onChange={(e) => setCurrentYear(e.target.value)}
+                  className="bg-transparent border-none outline-none text-slate-700 font-medium text-sm w-16 cursor-pointer"
+                />
+              </>
+            )}
           </div>
 
           <button onClick={handleLogout} className="hidden md:block p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all" title="Se déconnecter">
@@ -273,20 +313,20 @@ export default function App() {
           ))}
         </div>
 
-        {/* --- VUE DASHBOARD (Filtrée) --- */}
+        {/* --- DASHBOARD --- */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="p-6 bg-blue-600 text-white border-none">
-                <p className="text-blue-100 text-sm">Solde du Mois</p>
+                <p className="text-blue-100 text-sm">Solde ({getFilterLabel()})</p>
                 <h3 className="text-3xl font-bold mt-1">{formatCurrency(balance)}</h3>
               </Card>
               <Card className="p-6">
-                <p className="text-slate-500 text-sm">Revenus ({currentMonth})</p>
+                <p className="text-slate-500 text-sm">Revenus</p>
                 <h3 className="text-2xl font-bold text-emerald-600">+{formatCurrency(stats.totalIncome)}</h3>
               </Card>
               <Card className="p-6">
-                <p className="text-slate-500 text-sm">Dépenses ({currentMonth})</p>
+                <p className="text-slate-500 text-sm">Dépenses</p>
                 <h3 className="text-2xl font-bold text-rose-600">-{formatCurrency(stats.totalExpenses)}</h3>
               </Card>
             </div>
@@ -310,7 +350,7 @@ export default function App() {
                     <circle cx="50" cy="50" r="30" fill="white" />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center flex-col">
-                    <span className="text-xs text-slate-400">Total Dépenses</span>
+                    <span className="text-xs text-slate-400">Dépenses</span>
                     <span className="font-bold">{formatCurrency(stats.totalExpenses)}</span>
                   </div>
                </div>
@@ -329,7 +369,7 @@ export default function App() {
           </div>
         )}
 
-        {/* --- VUE TRANSACTIONS (Filtrée) --- */}
+        {/* --- TRANSACTIONS --- */}
         {activeTab === 'transactions' && (
           <div className="grid lg:grid-cols-3 gap-6">
             <Card className="p-6 h-fit sticky top-24">
@@ -364,7 +404,7 @@ export default function App() {
 
             <Card className="lg:col-span-2 overflow-hidden flex flex-col h-[500px]">
               <div className="p-4 bg-slate-50 border-b border-slate-200 font-bold flex justify-between items-center">
-                <span>Historique ({currentMonth})</span>
+                <span>Historique ({getFilterLabel()})</span>
                 <span className="text-xs bg-white px-2 py-1 rounded border border-slate-200">{filteredTransactions.length}</span>
               </div>
               <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
@@ -392,7 +432,7 @@ export default function App() {
                 {filteredTransactions.length === 0 && (
                    <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2">
                      <Calendar className="w-8 h-8 text-slate-200" />
-                     <p>Aucune transaction pour ce mois.</p>
+                     <p>Aucune transaction trouvée.</p>
                    </div>
                 )}
               </div>
@@ -400,18 +440,18 @@ export default function App() {
           </div>
         )}
         
-        {/* --- VUE ANALYSE (RESTORÉE et FILTRÉE) --- */}
+        {/* --- ANALYSE --- */}
         {activeTab === 'analysis' && (
            <div className="space-y-6">
              <Card className="p-6">
                <div className="flex justify-between items-center mb-6">
-                 <h3 className="font-bold text-lg text-slate-800">Analyse 50/30/20 du Mois</h3>
-                 <span className="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full">{currentMonth}</span>
+                 <h3 className="font-bold text-lg text-slate-800">Analyse 50/30/20</h3>
+                 <span className="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full">{getFilterLabel()}</span>
                </div>
                
                <div className="space-y-6">
                   {pieData.map((cat, i) => {
-                    const totalIncome = stats.totalIncome || 1; // Eviter division par 0
+                    const totalIncome = stats.totalIncome || 1; 
                     const targetAmount = totalIncome * cat.target;
                     const percent = totalIncome > 0 ? (cat.value / totalIncome) * 100 : 0;
                     const isOver = cat.value > targetAmount;
@@ -425,7 +465,6 @@ export default function App() {
                           </span>
                         </div>
                         <div className="h-2 bg-slate-100 rounded-full overflow-hidden relative">
-                          {/* Marqueur cible */}
                           <div 
                             className="absolute top-0 bottom-0 w-0.5 bg-slate-400 z-10" 
                             style={{left: `${cat.target * 100}%`}}
@@ -453,13 +492,13 @@ export default function App() {
 
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800">
-                 <strong>50% Besoins :</strong> Loyer, courses, factures indispensables.
+                 <strong>50% Besoins :</strong> Charges fixes (Loyer, courses...)
                </div>
                <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 text-sm text-purple-800">
-                 <strong>30% Envies :</strong> Restos, sorties, plaisirs.
+                 <strong>30% Envies :</strong> Loisirs et confort.
                </div>
                <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100 text-sm text-emerald-800">
-                 <strong>20% Épargne :</strong> Investissement et précaution.
+                 <strong>20% Épargne :</strong> Investissement futur.
                </div>
              </div>
            </div>
