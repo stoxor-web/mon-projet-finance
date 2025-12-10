@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Chart } from "react-google-charts"; // <-- Import pour le graphique de flux
+import { Chart } from "react-google-charts";
 import { initializeApp } from "firebase/app";
 import { 
   getAuth, 
@@ -26,7 +26,8 @@ import {
 import { 
   Wallet, BarChart3, PlusCircle, Target, TrendingUp, TrendingDown, 
   ArrowUpRight, ArrowDownRight, Trash2, LogOut, User as UserIcon, 
-  Calendar, Filter, AlertCircle, Moon, Sun, Mail, Lock, Repeat, CheckCircle, Workflow
+  Calendar, Filter, AlertCircle, Moon, Sun, Mail, Lock, Repeat, CheckCircle, Workflow,
+  Github, Twitter, Linkedin, Instagram
 } from 'lucide-react';
 
 // --- CONFIGURATION FIREBASE ---
@@ -77,6 +78,65 @@ const Card = ({ children, className = "" }: { children: React.ReactNode, classNa
   <div className={`bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 ${className}`}>
     {children}
   </div>
+);
+
+// --- COMPOSANT FOOTER ---
+const Footer = () => (
+  <footer className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 py-12 mt-12 transition-colors duration-300">
+    <div className="max-w-5xl mx-auto px-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+        <div>
+          <h4 className="font-bold text-slate-900 dark:text-white mb-4">Produit</h4>
+          <ul className="space-y-2 text-sm text-slate-500 dark:text-slate-400">
+            <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Fonctionnalités</a></li>
+            <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Tarifs</a></li>
+            <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Application Mobile</a></li>
+            <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Mises à jour</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 className="font-bold text-slate-900 dark:text-white mb-4">Ressources</h4>
+          <ul className="space-y-2 text-sm text-slate-500 dark:text-slate-400">
+            <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Blog</a></li>
+            <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Guide 50/30/20</a></li>
+            <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Aide & Support</a></li>
+            <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Communauté</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 className="font-bold text-slate-900 dark:text-white mb-4">Légal</h4>
+          <ul className="space-y-2 text-sm text-slate-500 dark:text-slate-400">
+            <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Confidentialité</a></li>
+            <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">CGU</a></li>
+            <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Mentions légales</a></li>
+            <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Cookies</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 className="font-bold text-slate-900 dark:text-white mb-4">STOXOR</h4>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+            Simplifiez la gestion de vos finances personnelles avec des outils intelligents.
+          </p>
+          <div className="flex gap-4">
+            <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Twitter className="w-5 h-5" /></a>
+            <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Linkedin className="w-5 h-5" /></a>
+            <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Instagram className="w-5 h-5" /></a>
+            <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Github className="w-5 h-5" /></a>
+          </div>
+        </div>
+      </div>
+      
+      <div className="border-t border-slate-100 dark:border-slate-700 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-2">
+           <div className="bg-blue-600 p-1.5 rounded-lg"><Wallet className="w-4 h-4 text-white" /></div>
+           <span className="font-bold text-slate-900 dark:text-white text-sm">Finance Flow</span>
+        </div>
+        <p className="text-xs text-slate-400">
+          © {new Date().getFullYear()} Finance Flow by STOXOR. Fait avec ❤️ à Paris.
+        </p>
+      </div>
+    </div>
+  </footer>
 );
 
 // --- ECRAN DE CONNEXION ---
@@ -144,6 +204,11 @@ const LoginScreen = ({ onGoogle, onGuest }: { onGoogle: () => void, onGuest: () 
         </div>
         <div className="text-center mt-4"><button onClick={() => { setIsSignUp(!isSignUp); setError(null); }} className="text-sm text-blue-600 dark:text-blue-400 hover:underline">{isSignUp ? "J'ai déjà un compte" : "Pas de compte ? S'inscrire"}</button></div>
       </Card>
+      
+      {/* FOOTER ÉCRAN LOGIN */}
+      <div className="mt-12 w-full max-w-sm text-center">
+        <p className="text-xs text-slate-400">© {new Date().getFullYear()} Finance Flow by STOXOR</p>
+      </div>
     </div>
   );
 };
@@ -311,16 +376,14 @@ export default function App() {
 
   // --- PRÉPARATION DES DONNÉES SANKEY ---
   const prepareSankeyData = () => {
-    const data: any[] = [["De", "À", "Montant"]]; // Header obligatoire
+    const data: any[] = [["De", "À", "Montant"]];
     
-    // 1. REVENUS (Source)
     const totalIncome = filteredTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    if (totalIncome === 0) return null; // Pas de données à afficher
+    if (totalIncome === 0) return null;
 
-    // 2. DISTRIBUTION DANS LES CATÉGORIES (Niveau 1)
     const expensesByCat = filteredTransactions
       .filter(t => t.type === 'expense')
       .reduce((acc, t) => {
@@ -328,17 +391,13 @@ export default function App() {
         return acc;
       }, { needs: 0, wants: 0, savings: 0 } as Record<string, number>);
 
-    // Si on a des dépenses, on crée les liens Revenus -> Catégorie
     if (expensesByCat.needs > 0) data.push(["Revenus", "Besoins (50%)", expensesByCat.needs]);
     if (expensesByCat.wants > 0) data.push(["Revenus", "Envies (30%)", expensesByCat.wants]);
     if (expensesByCat.savings > 0) data.push(["Revenus", "Épargne (20%)", expensesByCat.savings]);
 
-    // Reste (Solde non dépensé)
     const remaining = totalIncome - (expensesByCat.needs + expensesByCat.wants + expensesByCat.savings);
     if (remaining > 0) data.push(["Revenus", "Solde Restant", remaining]);
 
-    // 3. DÉTAIL DES DÉPENSES (Niveau 2)
-    // On groupe les dépenses par libellé pour éviter d'avoir 50 fils "Uber"
     const expensesByLabelAndCat = filteredTransactions
       .filter(t => t.type === 'expense')
       .reduce((acc, t) => {
@@ -353,8 +412,6 @@ export default function App() {
       if (t.category === 'needs') sourceName = "Besoins (50%)";
       if (t.category === 'wants') sourceName = "Envies (30%)";
       if (t.category === 'savings') sourceName = "Épargne (20%)";
-      
-      // On ajoute la ligne : Catégorie -> Nom de la dépense
       data.push([sourceName, t.label, t.amount]);
     });
 
@@ -380,7 +437,7 @@ export default function App() {
   if (!user) return <LoginScreen onGoogle={handleGoogleLogin} onGuest={handleGuestLogin} />;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans pb-20 md:pb-0 transition-colors duration-300">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans pb-20 md:pb-0 transition-colors duration-300 flex flex-col">
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 transition-colors">
         <div className="max-w-5xl mx-auto px-4 py-4 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div className="flex justify-between items-center w-full md:w-auto">
@@ -417,14 +474,14 @@ export default function App() {
 
       {errorMsg && <div className="bg-rose-100 dark:bg-rose-900/30 border-l-4 border-rose-500 text-rose-700 dark:text-rose-300 p-4 m-4 font-bold flex items-center gap-2"><AlertCircle className="w-5 h-5"/> {errorMsg}</div>}
 
-      <main className="max-w-5xl mx-auto px-4 py-6">
+      <main className="max-w-5xl mx-auto px-4 py-6 flex-grow w-full">
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           {[
             { id: 'dashboard', icon: BarChart3, label: 'Tableau de bord' },
             { id: 'transactions', icon: PlusCircle, label: 'Transactions' },
             { id: 'recurring', icon: Repeat, label: 'Récurrent' },
             { id: 'analysis', icon: Target, label: 'Analyse' },
-            { id: 'flow', icon: Workflow, label: 'Flux' }, // NOUVEL ONGLET
+            { id: 'flow', icon: Workflow, label: 'Flux' },
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-slate-900 dark:bg-blue-600 text-white shadow-md' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'}`}>
               <tab.icon className="w-4 h-4" /> {tab.label}
@@ -681,6 +738,9 @@ export default function App() {
           </div>
         )}
       </main>
+      
+      {/* FOOTER */}
+      <Footer />
     </div>
   );
 }
