@@ -27,7 +27,7 @@ import {
   Wallet, BarChart3, PlusCircle, Target, TrendingUp, TrendingDown, 
   ArrowUpRight, ArrowDownRight, Trash2, LogOut, User as UserIcon, 
   Calendar, Filter, AlertCircle, Moon, Sun, Mail, Lock, Repeat, CheckCircle, Workflow,
-  Github, Discord, Linkedin, Instagram
+  Github, Twitter, Linkedin, Instagram
 } from 'lucide-react';
 
 // --- CONFIGURATION FIREBASE ---
@@ -79,6 +79,7 @@ const categoryLabels: Record<string, string> = {
   salary: 'Salaire'
 };
 
+// Fonction pour obtenir le label propre
 const getDisplayCategory = (type: TransactionType, category: string) => {
   if (type === 'income') return 'Revenu';
   return categoryLabels[category] || category;
@@ -131,7 +132,7 @@ const Footer = () => (
             Simplifiez la gestion de vos finances personnelles avec des outils intelligents.
           </p>
           <div className="flex gap-4">
-            <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Discord className="w-5 h-5" /></a>
+            <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Twitter className="w-5 h-5" /></a>
             <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Linkedin className="w-5 h-5" /></a>
             <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Instagram className="w-5 h-5" /></a>
             <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Github className="w-5 h-5" /></a>
@@ -145,7 +146,7 @@ const Footer = () => (
            <span className="font-bold text-slate-900 dark:text-white text-sm">Finance Flow</span>
         </div>
         <p className="text-xs text-slate-400">
-          © {new Date().getFullYear()} Finance Flow by STOXOR.
+          © {new Date().getFullYear()} Finance Flow by STOXOR. Fait avec ❤️ à Paris.
         </p>
       </div>
     </div>
@@ -312,11 +313,9 @@ export default function App() {
     } catch (err) { alert("Erreur d'ajout récurrent"); }
   };
 
-  // --- MODIFICATION ICI : Suppression directe sans confirmation ---
   const handleDelete = async (id: string, collectionName: string) => {
     if (!user) return;
-    // Plus de "if (confirm...)" -> Suppression directe
-    await deleteDoc(doc(db, "users", user.uid, collectionName, id));
+    if (confirm("Supprimer ?")) await deleteDoc(doc(db, "users", user.uid, collectionName, id));
   };
 
   // Logic Gen
@@ -418,6 +417,7 @@ export default function App() {
     const expensesByLabelAndCat = filteredTransactions
       .filter(t => t.type === 'expense')
       .reduce((acc, t) => {
+        // Groupement intelligent par libellé ET catégorie
         const key = `${t.category}-${t.label}`;
         if (!acc[key]) acc[key] = { ...t, amount: 0 };
         acc[key].amount += t.amount;
@@ -436,14 +436,16 @@ export default function App() {
   };
 
   const sankeyData = prepareSankeyData();
+  
+  // --- STYLE AVANCÉ DU SANKEY (STYLE FINARY) ---
   const sankeyOptions = {
     sankey: {
       node: {
-        width: 12,
-        nodePadding: 20,
+        width: 12, // Barres plus fines
+        nodePadding: 20, // Plus d'espace entre les nœuds
         colors: isDarkMode 
-          ? ['#60a5fa', '#f59e0b', '#a855f7', '#10b981', '#cbd5e1']
-          : ['#2563eb', '#d97706', '#9333ea', '#059669', '#64748b'],
+          ? ['#60a5fa', '#f59e0b', '#a855f7', '#10b981', '#cbd5e1'] // Palette Dark (Bleu, Orange, Violet, Vert)
+          : ['#2563eb', '#d97706', '#9333ea', '#059669', '#64748b'], // Palette Light
         label: { 
           fontName: 'sans-serif',
           fontSize: 13,
@@ -452,8 +454,8 @@ export default function App() {
         }
       },
       link: { 
-        colorMode: 'gradient',
-        fillOpacity: 0.5
+        colorMode: 'gradient', // Dégradé fluide comme sur l'image
+        fillOpacity: 0.5 // Transparence pour voir les superpositions
       }
     },
     tooltip: { 
@@ -685,7 +687,7 @@ export default function App() {
                       <div>
                         <div className="font-medium text-slate-800 dark:text-slate-200">{item.label}</div>
                         <div className="text-xs text-slate-400 dark:text-slate-500 capitalize">
-                          {item.durationMonths === 0 ? "Illimité" : `${item.durationMonths} Mois restants`} • {item.category}
+                          {item.durationMonths === 0 ? "Illimité" : `${item.durationMonths} Mois restants`} • {getDisplayCategory(item.type, item.category)}
                         </div>
                       </div>
                     </div>
