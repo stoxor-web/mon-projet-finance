@@ -27,7 +27,7 @@ import {
   Wallet, BarChart3, PlusCircle, Target, TrendingUp, TrendingDown, 
   ArrowUpRight, ArrowDownRight, Trash2, LogOut, User as UserIcon, 
   Calendar, Filter, AlertCircle, Moon, Sun, Mail, Lock, Repeat, Workflow,
-  Github, Twitter, Linkedin, Instagram
+  Github, Discord, Linkedin, Instagram
 } from 'lucide-react';
 
 // --- 1. CONFIGURATION & SERVICES ---
@@ -415,4 +415,137 @@ const FlowView = ({ transactions, filterLabel, isDarkMode }: any) => {
     if (expensesByCat.savings > 0) data.push(["Revenus", "Épargne (20%)", expensesByCat.savings]);
     const remaining = totalIncome - (expensesByCat.needs + expensesByCat.wants + expensesByCat.savings);
     if (remaining > 0) data.push(["Revenus", "Solde Restant", remaining]);
-    const expensesByLabelAndCat = transactions.filter((t: any) => t.type === 'expense').reduce((acc: any, t: any) => { const key = `${t.category}-${t.label}`; if (!acc[key
+    const expensesByLabelAndCat = transactions.filter((t: any) => t.type === 'expense').reduce((acc: any, t: any) => { const key = `${t.category}-${t.label}`; if (!acc[key]) acc[key] = { ...t, amount: 0 }; acc[key].amount += t.amount; return acc; }, {});
+    Object.values(expensesByLabelAndCat).forEach((t: any) => {
+      let sourceName = "";
+      if (t.category === 'needs') sourceName = "Besoins (50%)"; if (t.category === 'wants') sourceName = "Envies (30%)"; if (t.category === 'savings') sourceName = "Épargne (20%)";
+      data.push([sourceName, t.label, t.amount]);
+    });
+    return data;
+  };
+  const sankeyData = prepareSankeyData();
+  const sankeyOptions = {
+    sankey: {
+      node: { width: 12, nodePadding: 20, colors: isDarkMode ? ['#60a5fa', '#f59e0b', '#a855f7', '#10b981', '#cbd5e1'] : ['#2563eb', '#d97706', '#9333ea', '#059669', '#64748b'], label: { fontName: 'sans-serif', fontSize: 13, color: isDarkMode ? '#e2e8f0' : '#1e293b', bold: true } },
+      link: { colorMode: 'gradient', fillOpacity: 0.5 }
+    },
+    tooltip: { isHtml: true, textStyle: { fontName: 'sans-serif' } },
+    backgroundColor: 'transparent',
+  };
+  return (
+    <div className="space-y-6">
+      <Card className="p-6 h-[600px] flex flex-col">
+        <div className="flex justify-between items-center mb-6"><div><h3 className="font-bold text-lg text-slate-800 dark:text-white">Flux de trésorerie</h3><p className="text-sm text-slate-500 dark:text-slate-400">Visualisez où part votre argent ({filterLabel})</p></div></div>
+        {sankeyData && sankeyData.length > 1 ? (<div className="flex-1 rounded-lg overflow-hidden bg-white dark:bg-slate-800"><Chart chartType="Sankey" width="100%" height="100%" data={sankeyData} options={sankeyOptions} /></div>) : (<div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500"><Workflow className="w-12 h-12 mb-2 opacity-50" /><p>Pas assez de données pour générer le flux.</p></div>)}
+      </Card>
+    </div>
+  );
+};
+
+// --- 6. CHEF D'ORCHESTRE (App) ---
+export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [recurringItems, setRecurringItems] = useState<RecurringItem[]>([]);
+  const [isDarkMode, setIsDarkMode] = useState(() => typeof window !== 'undefined' ? localStorage.getItem('theme') === 'dark' : false);
+  const [filterType, setFilterType] = useState<'month' | 'year' | 'all'>('all');
+  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear().toString());
+
+  useEffect(() => { if (isDarkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [isDarkMode]);
+  useEffect(() => { const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); }); return () => unsubscribe(); }, []);
+  useEffect(() => {
+    if (!user) { setTransactions([]); setRecurringItems([]); return; }
+    const unsubTrx = onSnapshot(query(collection(db, "users", user.uid, "transactions"), orderBy("date", "desc")), (snap) => { setTransactions(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Transaction[]); setErrorMsg(null); }, (err) => setErrorMsg("Erreur accès DB"));
+    const unsubRec = onSnapshot(query(collection(db, "users", user.uid, "recurring")), (snap) => setRecurringItems(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as RecurringItem[]));
+    return () => { unsubTrx(); unsubRec(); };
+  }, [user]);
+
+  const handleGoogleLogin = async () => { try { await signInWithPopup(auth, googleProvider); } catch (e) { console.error(e); } };
+  const handleGuestLogin = async () => { try { await signInAnonymously(auth); } catch (e) { console.error(e); } };
+  const handleLogout = () => signOut(auth);
+  const handleAdd = async (e: React.FormEvent, data: any) => { e.preventDefault(); if (!user) return; await addDoc(collection(db, "users", user.uid, "transactions"), { ...data, amount: parseFloat(data.amount), createdAt: new Date() }); if (window.innerWidth < 768) setActiveTab('transactions'); };
+  const handleAddRecurring = async (e: React.FormEvent, data: any) => { e.preventDefault(); if (!user) return; await addDoc(collection(db, "users", user.uid, "recurring"), { ...data, amount: parseFloat(data.amount), frequency: 'monthly', startDate: new Date().toISOString().slice(0, 7), lastGenerated: "", createdAt: new Date() }); alert("Abonnement programmé !"); };
+  const handleDelete = async (id: string, collectionName: string) => { if (!user) return; await deleteDoc(doc(db, "users", user.uid, collectionName, id)); };
+
+  // Logic Gen
+  const pendingRecurringCount = recurringItems.filter(item => {
+    const currentMonthStr = new Date().toISOString().slice(0, 7);
+    const isDue = item.lastGenerated < currentMonthStr;
+    let isExpired = false;
+    if (item.durationMonths > 0) {
+      const start = new Date(item.startDate + "-01");
+      const end = new Date(start.setMonth(start.getMonth() + item.durationMonths));
+      if (new Date() > end) isExpired = true;
+    }
+    return isDue && !isExpired;
+  }).length;
+  const generateRecurringTransactions = async () => {
+    if (!user) return;
+    const currentMonthStr = new Date().toISOString().slice(0, 7);
+    const dayOfMonth = new Date().getDate().toString().padStart(2, '0');
+    let generatedCount = 0;
+    for (const item of recurringItems) {
+      if (item.lastGenerated < currentMonthStr) {
+        let isExpired = false;
+        if (item.durationMonths > 0) {
+          const start = new Date(item.startDate + "-01");
+          const end = new Date(start.setMonth(start.getMonth() + item.durationMonths));
+          if (new Date() > end) isExpired = true;
+        }
+        if (!isExpired) {
+          await addDoc(collection(db, "users", user.uid, "transactions"), { label: `${item.label} (Auto)`, amount: item.amount, date: `${currentMonthStr}-${dayOfMonth}`, type: item.type, category: item.category, isAuto: true, createdAt: new Date() });
+          await updateDoc(doc(db, "users", user.uid, "recurring", item.id), { lastGenerated: currentMonthStr });
+          generatedCount++;
+        }
+      }
+    }
+    alert(`${generatedCount} opérations générées !`);
+  };
+
+  const filteredTransactions = transactions.filter(t => { if (filterType === 'all') return true; if (filterType === 'year') return t.date.startsWith(currentYear); return t.date.startsWith(currentMonth); });
+  const stats = filteredTransactions.reduce((acc, t) => { if (t.type === 'income') acc.totalIncome += t.amount; else { acc.totalExpenses += t.amount; acc.expensesByCategory[t.category] = (acc.expensesByCategory[t.category] || 0) + t.amount; } return acc; }, { totalIncome: 0, totalExpenses: 0, expensesByCategory: { needs: 0, wants: 0, savings: 0 } });
+  const balance = stats.totalIncome - stats.totalExpenses;
+  const pieData = [ { name: 'Besoins', value: stats.expensesByCategory.needs || 0, color: '#3b82f6', target: 0.5 }, { name: 'Envies', value: stats.expensesByCategory.wants || 0, color: '#a855f7', target: 0.3 }, { name: 'Épargne', value: stats.expensesByCategory.savings || 0, color: '#22c55e', target: 0.2 } ];
+  const getFilterLabel = () => filterType === 'all' ? "Global" : (filterType === 'year' ? currentYear : currentMonth);
+  const displayName = user?.isAnonymous ? "Invité" : (user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || "Utilisateur");
+
+  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 text-slate-500">Chargement...</div>;
+  if (!user) return <LoginScreen onGoogle={handleGoogleLogin} onGuest={handleGuestLogin} />;
+
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans pb-20 md:pb-0 transition-colors duration-300 flex flex-col">
+      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10 transition-colors">
+        <div className="max-w-5xl mx-auto px-4 py-4 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+          <div className="flex justify-between items-center w-full md:w-auto">
+            <div className="flex items-center gap-2"><div className="bg-blue-600 p-2 rounded-lg"><Wallet className="w-6 h-6 text-white" /></div><div><h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 leading-tight">Finance Flow</h1><p className="text-xs text-slate-400 dark:text-slate-500 font-medium flex items-center gap-1">{user.isAnonymous && <UserIcon className="w-3 h-3" />} Bonjour, {displayName}</p></div></div>
+            <div className="flex items-center gap-2 md:hidden"><button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 text-slate-400 hover:text-blue-500 dark:hover:text-yellow-400 rounded-lg bg-slate-100 dark:bg-slate-700">{isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}</button><button onClick={handleLogout} className="p-2 text-slate-400 hover:text-rose-500 rounded-lg"><LogOut className="w-5 h-5" /></button></div>
+          </div>
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-700 p-1.5 rounded-lg border border-slate-200 dark:border-slate-600 w-full md:w-auto transition-colors">
+            <Filter className="w-4 h-4 text-slate-400 ml-2" /><select value={filterType} onChange={(e) => setFilterType(e.target.value as any)} className="bg-transparent border-none outline-none text-slate-700 dark:text-slate-200 font-bold text-sm cursor-pointer"><option value="month" className="text-slate-900">Mois</option><option value="year" className="text-slate-900">Année</option><option value="all" className="text-slate-900">Tout</option></select>
+            {filterType === 'month' && (<><div className="w-px h-4 bg-slate-300 dark:bg-slate-500 mx-1"></div><input type="month" value={currentMonth} onChange={(e) => setCurrentMonth(e.target.value)} className="bg-transparent border-none outline-none text-slate-700 dark:text-slate-200 font-medium text-sm w-full md:w-auto cursor-pointer dark:scheme-dark" /></>)}
+            {filterType === 'year' && (<><div className="w-px h-4 bg-slate-300 dark:bg-slate-500 mx-1"></div><input type="number" min="2020" max="2030" value={currentYear} onChange={(e) => setCurrentYear(e.target.value)} className="bg-transparent border-none outline-none text-slate-700 dark:text-slate-200 font-medium text-sm w-16 cursor-pointer" /></>)}
+          </div>
+          <div className="hidden md:flex items-center gap-2"><button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 text-slate-400 hover:text-blue-500 dark:hover:text-yellow-400 rounded-lg bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600">{isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}</button><button onClick={handleLogout} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-slate-800 rounded-lg transition-all"><LogOut className="w-5 h-5" /></button></div>
+        </div>
+      </header>
+      {errorMsg && <div className="bg-rose-100 dark:bg-rose-900/30 border-l-4 border-rose-500 text-rose-700 dark:text-rose-300 p-4 m-4 font-bold flex items-center gap-2"><AlertCircle className="w-5 h-5"/> {errorMsg}</div>}
+      <main className="max-w-5xl mx-auto px-4 py-6 flex-grow w-full">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+          {[{ id: 'dashboard', icon: BarChart3, label: 'Tableau de bord' }, { id: 'transactions', icon: PlusCircle, label: 'Transactions' }, { id: 'recurring', icon: Repeat, label: 'Récurrent' }, { id: 'analysis', icon: Target, label: 'Analyse' }, { id: 'flow', icon: Workflow, label: 'Flux' }].map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-slate-900 dark:bg-blue-600 text-white shadow-md' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'}`}><tab.icon className="w-4 h-4" /> {tab.label}</button>
+          ))}
+        </div>
+        {activeTab === 'dashboard' && <DashboardView stats={stats} balance={balance} pieData={pieData} filterLabel={getFilterLabel()} isDarkMode={isDarkMode} pendingRecurringCount={pendingRecurringCount} onGenerateRecurring={generateRecurringTransactions} />}
+        {activeTab === 'transactions' && <TransactionsView transactions={filteredTransactions} onAdd={handleAdd} onDelete={(id: string) => handleDelete(id, 'transactions')} filterLabel={getFilterLabel()} />}
+        {activeTab === 'recurring' && <RecurringView items={recurringItems} onAdd={handleAddRecurring} onDelete={(id: string) => handleDelete(id, 'recurring')} />}
+        {activeTab === 'analysis' && <AnalysisView stats={stats} pieData={pieData} filterLabel={getFilterLabel()} />}
+        {activeTab === 'flow' && <FlowView transactions={filteredTransactions} filterLabel={getFilterLabel()} isDarkMode={isDarkMode} />}
+      </main>
+      <Footer />
+    </div>
+  );
+}
