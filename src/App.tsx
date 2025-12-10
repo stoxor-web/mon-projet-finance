@@ -118,7 +118,7 @@ const Footer = () => (
             Simplifiez la gestion de vos finances personnelles avec des outils intelligents.
           </p>
           <div className="flex gap-4">
-            <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Discord className="w-5 h-5" /></a>
+            <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Twitter className="w-5 h-5" /></a>
             <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Linkedin className="w-5 h-5" /></a>
             <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Instagram className="w-5 h-5" /></a>
             <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Github className="w-5 h-5" /></a>
@@ -391,6 +391,7 @@ export default function App() {
         return acc;
       }, { needs: 0, wants: 0, savings: 0 } as Record<string, number>);
 
+    // LIENS REVENUS -> CATÉGORIES (Niveau 1)
     if (expensesByCat.needs > 0) data.push(["Revenus", "Besoins (50%)", expensesByCat.needs]);
     if (expensesByCat.wants > 0) data.push(["Revenus", "Envies (30%)", expensesByCat.wants]);
     if (expensesByCat.savings > 0) data.push(["Revenus", "Épargne (20%)", expensesByCat.savings]);
@@ -398,9 +399,11 @@ export default function App() {
     const remaining = totalIncome - (expensesByCat.needs + expensesByCat.wants + expensesByCat.savings);
     if (remaining > 0) data.push(["Revenus", "Solde Restant", remaining]);
 
+    // LIENS CATÉGORIES -> DÉTAILS (Niveau 2)
     const expensesByLabelAndCat = filteredTransactions
       .filter(t => t.type === 'expense')
       .reduce((acc, t) => {
+        // Groupement intelligent par libellé ET catégorie
         const key = `${t.category}-${t.label}`;
         if (!acc[key]) acc[key] = { ...t, amount: 0 };
         acc[key].amount += t.amount;
@@ -419,15 +422,33 @@ export default function App() {
   };
 
   const sankeyData = prepareSankeyData();
+  
+  // --- STYLE AVANCÉ DU SANKEY (STYLE FINARY) ---
   const sankeyOptions = {
     sankey: {
       node: {
-        colors: isDarkMode ? ['#60a5fa', '#3b82f6', '#a855f7', '#22c55e', '#94a3b8'] : ['#2563eb', '#3b82f6', '#a855f7', '#22c55e', '#64748b'],
-        label: { color: isDarkMode ? '#ffffff' : '#000000', fontSize: 13, bold: true }
+        width: 12, // Barres plus fines
+        nodePadding: 20, // Plus d'espace entre les nœuds
+        colors: isDarkMode 
+          ? ['#60a5fa', '#f59e0b', '#a855f7', '#10b981', '#cbd5e1'] // Palette Dark (Bleu, Orange, Violet, Vert)
+          : ['#2563eb', '#d97706', '#9333ea', '#059669', '#64748b'], // Palette Light
+        label: { 
+          fontName: 'sans-serif',
+          fontSize: 13,
+          color: isDarkMode ? '#e2e8f0' : '#1e293b',
+          bold: true
+        }
       },
-      link: { colorMode: 'gradient' }
+      link: { 
+        colorMode: 'gradient', // Dégradé fluide comme sur l'image
+        fillOpacity: 0.5 // Transparence pour voir les superpositions
+      }
     },
-    tooltip: { isHtml: true }
+    tooltip: { 
+      isHtml: true, 
+      textStyle: { fontName: 'sans-serif' } 
+    },
+    backgroundColor: 'transparent',
   };
 
   const getFilterLabel = () => filterType === 'all' ? "Global" : (filterType === 'year' ? currentYear : currentMonth);
@@ -707,7 +728,7 @@ export default function App() {
            </div>
         )}
 
-        {/* NOUVEL ONGLET : FLUX (SANKEY) */}
+        {/* NOUVEL ONGLET : FLUX (SANKEY STYLE FINARY) */}
         {activeTab === 'flow' && (
           <div className="space-y-6">
             <Card className="p-6 h-[600px] flex flex-col">
