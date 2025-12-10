@@ -132,7 +132,7 @@ const Footer = () => (
            <span className="font-bold text-slate-900 dark:text-white text-sm">Finance Flow</span>
         </div>
         <p className="text-xs text-slate-400">
-          © {new Date().getFullYear()} Finance Flow by STOXOR.
+          © {new Date().getFullYear()} Finance Flow by STOXOR. Fait avec ❤️ à Paris.
         </p>
       </div>
     </div>
@@ -508,7 +508,7 @@ export default function App() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="p-6 bg-blue-600 dark:bg-blue-700 text-white border-none">
+              <Card className="p-6 !bg-blue-600 !dark:bg-blue-700 text-white border-none">
                 <p className="text-blue-100 text-sm">Solde ({getFilterLabel()})</p>
                 <h3 className="text-3xl font-bold mt-1">{formatCurrency(balance)}</h3>
               </Card>
