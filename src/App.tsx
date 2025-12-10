@@ -118,7 +118,7 @@ const Footer = () => (
             Simplifiez la gestion de vos finances personnelles avec des outils intelligents.
           </p>
           <div className="flex gap-4">
-            <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Twitter className="w-5 h-5" /></a>
+            <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Discord className="w-5 h-5" /></a>
             <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Linkedin className="w-5 h-5" /></a>
             <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Instagram className="w-5 h-5" /></a>
             <a href="#" className="text-slate-400 hover:text-blue-600 dark:hover:text-white transition-colors"><Github className="w-5 h-5" /></a>
