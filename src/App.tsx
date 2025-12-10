@@ -7,56 +7,21 @@ import {
   TrendingUp, 
   TrendingDown, 
   ArrowUpRight, 
-  ArrowDownRight,
-  Trash2,
-  DollarSign
+  ArrowDownRight
 } from 'lucide-react';
 
 import { Card } from './components/Layout/Card';
 import { SimplePieChart } from './components/Charts/SimplePieChart';
+import { TransactionForm } from './components/Forms/TransactionForm';
+import { TransactionHistory } from './components/Transactions/TransactionHistory'; // Assure-toi que le chemin est bon !
 import { useFinance } from './hooks/useFinance';
 import { formatCurrency } from './utils/format';
-import { CategoryType, TransactionType } from './types';
-
-// Petit composant interne pour les icônes de catégorie
-const CategoryIcon = ({ category }: { category: string }) => {
-  if (category === 'needs') return <Wallet className="w-5 h-5" />;
-  if (category === 'wants') return <TrendingUp className="w-5 h-5" />;
-  if (category === 'savings') return <Target className="w-5 h-5" />;
-  return <DollarSign className="w-5 h-5" />;
-};
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const { transactions, addTransaction, deleteTransaction, stats } = useFinance();
 
-  // État du formulaire
-  const [formData, setFormData] = useState({
-    label: '',
-    amount: '',
-    date: new Date().toISOString().split('T')[0],
-    type: 'expense' as TransactionType,
-    category: 'needs' as CategoryType
-  });
-
-  // Gestionnaire de soumission du formulaire
-  const handleAddTransaction = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.label || !formData.amount) return;
-
-    addTransaction({
-      label: formData.label,
-      amount: parseFloat(formData.amount),
-      date: formData.date,
-      type: formData.type,
-      category: formData.category
-    });
-
-    // Reset partiel du formulaire
-    setFormData({ ...formData, label: '', amount: '' });
-  };
-
-  // Données préparées pour le graphique
+  // Données pour le graphique
   const pieData = [
     { name: 'Besoins (50%)', value: stats.expensesByCategory.needs, color: '#3b82f6', target: 0.5 },
     { name: 'Envies (30%)', value: stats.expensesByCategory.wants, color: '#a855f7', target: 0.3 },
@@ -161,7 +126,7 @@ export default function App() {
                 </div>
               </Card>
 
-              {/* Transactions récentes */}
+              {/* Transactions récentes (Version simplifiée réutilisant le tableau mais en mode court) */}
               <Card className="p-6 lg:col-span-2">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-lg font-bold text-slate-800">Activités Récentes</h3>
@@ -186,8 +151,7 @@ export default function App() {
                   ))}
                   {transactions.length === 0 && (
                     <div className="text-center py-8 text-slate-400">
-                      <p>Aucune transaction pour le moment.</p>
-                      <button onClick={() => setActiveTab('transactions')} className="text-blue-600 text-sm mt-2 font-medium">Commencer</button>
+                      <p>Aucune transaction.</p>
                     </div>
                   )}
                 </div>
@@ -196,142 +160,20 @@ export default function App() {
           </div>
         )}
 
-        {/* --- VUE 2 : TRANSACTIONS --- */}
+        {/* --- VUE 2 : TRANSACTIONS (NETTOYÉE) --- */}
         {activeTab === 'transactions' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Formulaire Ajout */}
+            {/* 1. Le Formulaire (Importé) */}
             <Card className="p-6 h-fit sticky top-24">
-              <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <PlusCircle className="w-5 h-5 text-blue-600" />
-                Nouvelle Opération
-              </h3>
-              <form onSubmit={handleAddTransaction} className="space-y-4">
-                {/* Sélecteur Type */}
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Type de transaction</label>
-                  <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-lg">
-                    <button
-                      type="button"
-                      onClick={() => setFormData({...formData, type: 'expense'})}
-                      className={`py-2 text-sm font-medium rounded-md transition-all ${formData.type === 'expense' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}
-                    >
-                      Dépense
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({...formData, type: 'income'})}
-                      className={`py-2 text-sm font-medium rounded-md transition-all ${formData.type === 'income' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}
-                    >
-                      Revenu
-                    </button>
-                  </div>
-                </div>
-
-                {/* Champs Texte */}
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Libellé</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder={formData.type === 'income' ? "Ex: Salaire, Vente..." : "Ex: Loyer, Courses..."}
-                    className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all"
-                    value={formData.label}
-                    onChange={e => setFormData({...formData, label: e.target.value})}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Montant (€)</label>
-                    <input
-                      type="number"
-                      required
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all"
-                      value={formData.amount}
-                      onChange={e => setFormData({...formData, amount: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Date</label>
-                    <input
-                      type="date"
-                      required
-                      className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all"
-                      value={formData.date}
-                      onChange={e => setFormData({...formData, date: e.target.value})}
-                    />
-                  </div>
-                </div>
-
-                {/* Catégorie (seulement pour dépenses) */}
-                {formData.type === 'expense' && (
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Catégorie (Méthode 50/30/20)</label>
-                    <select
-                      className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white transition-all cursor-pointer"
-                      value={formData.category}
-                      onChange={e => setFormData({...formData, category: e.target.value as CategoryType})}
-                    >
-                      <option value="needs">Besoins (50%) - Nécessaire</option>
-                      <option value="wants">Envies (30%) - Loisirs</option>
-                      <option value="savings">Épargne (20%) - Futur</option>
-                    </select>
-                  </div>
-                )}
-
-                <button type="submit" className="w-full bg-slate-900 text-white py-3 rounded-lg font-medium hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-200 active:scale-95">
-                  <PlusCircle className="w-4 h-4" />
-                  Ajouter la transaction
-                </button>
-              </form>
+              <TransactionForm onAdd={addTransaction} />
             </Card>
 
-            {/* Liste complète */}
-            <Card className="p-0 lg:col-span-2 overflow-hidden flex flex-col h-[500px]">
-               <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
-                 <h3 className="font-bold text-slate-800">Historique des opérations</h3>
-                 <span className="text-xs bg-white border border-slate-200 text-slate-600 px-2 py-1 rounded-full">{transactions.length}</span>
-               </div>
-               <div className="divide-y divide-slate-100 overflow-y-auto flex-1">
-                 {transactions.map(t => (
-                   <div key={t.id} className="p-4 flex items-center justify-between hover:bg-slate-50 group transition-colors">
-                     <div className="flex items-center gap-4">
-                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${t.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>
-                         {t.type === 'income' ? <DollarSign className="w-5 h-5" /> : <CategoryIcon category={t.category} />}
-                       </div>
-                       <div>
-                         <p className="font-medium text-slate-800">{t.label}</p>
-                         <div className="flex gap-2 text-xs text-slate-400">
-                            <span>{t.date}</span>
-                            <span>•</span>
-                            <span className="capitalize">{t.category === 'needs' ? 'Besoin' : t.category === 'wants' ? 'Envie' : t.category === 'savings' ? 'Épargne' : 'Revenu'}</span>
-                         </div>
-                       </div>
-                     </div>
-                     <div className="flex items-center gap-4">
-                       <span className={`font-bold ${t.type === 'income' ? 'text-emerald-600' : 'text-slate-800'}`}>
-                         {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
-                       </span>
-                       <button 
-                        onClick={() => deleteTransaction(t.id)}
-                        className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-full p-2 transition-all opacity-0 group-hover:opacity-100"
-                        title="Supprimer"
-                       >
-                         <Trash2 className="w-4 h-4" />
-                       </button>
-                     </div>
-                   </div>
-                 ))}
-                 {transactions.length === 0 && (
-                   <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                     <p>Aucune donnée.</p>
-                   </div>
-                 )}
-               </div>
+            {/* 2. La Liste (Importée) */}
+            <Card className="p-0 lg:col-span-2 overflow-hidden">
+               <TransactionHistory 
+                  transactions={transactions} 
+                  onDelete={deleteTransaction} 
+               />
             </Card>
           </div>
         )}
@@ -373,13 +215,10 @@ export default function App() {
 
                       {/* Barre de progression */}
                       <div className="h-3 bg-slate-100 rounded-full overflow-hidden relative mt-3">
-                        {/* Marqueur de l'objectif (petite ligne noire) */}
                         <div 
                           className="absolute top-0 bottom-0 w-0.5 bg-slate-800 z-10 opacity-30" 
                           style={{ left: `${category.target * 100}%` }}
                         ></div>
-                        
-                        {/* Barre remplie */}
                         <div 
                           className={`h-full rounded-full transition-all duration-700 ease-out ${isOverBudget ? 'opacity-90' : ''}`}
                           style={{ 
@@ -389,7 +228,6 @@ export default function App() {
                         ></div>
                       </div>
                       
-                      {/* Message d'alerte */}
                       {isOverBudget && (
                         <p className="text-xs text-rose-600 mt-2 flex items-center gap-1 font-medium bg-rose-50 p-2 rounded-lg inline-block">
                           <TrendingUp className="w-3 h-3" />
